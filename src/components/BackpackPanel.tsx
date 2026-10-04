@@ -23,6 +23,7 @@ import {
   ArrowRight,
   Eye,
   Check,
+  ChevronRight,
 } from 'lucide-react';
 import { GameItem, HeroCharacter, StatType } from '../types/game';
 import { sounds } from '../utils/audio';
@@ -241,9 +242,6 @@ export const BackpackPanel: React.FC<BackpackPanelProps> = ({
                 <h2 className="text-base sm:text-lg font-serif font-black text-[#f5e4c6] leading-tight">
                   Adventurer's Backpack
                 </h2>
-                <span className="text-[10px] font-mono font-bold bg-[#382717] text-amber-300 px-2 py-0.5 rounded border border-[#5c3e23]">
-                  Panel 1 of 4
-                </span>
               </div>
               <span className="text-[11px] font-serif text-stone-400 block">
                 Manage inventory, equip weapons & activate dungeon tools
@@ -274,15 +272,6 @@ export const BackpackPanel: React.FC<BackpackPanelProps> = ({
                 <span className="font-bold text-purple-200">{hero.rerollTokens} Tokens</span>
               </div>
             </div>
-
-            <button
-              onClick={onGoToAdventurer}
-              className="hidden md:flex items-center gap-1 px-3 py-1.5 bg-[#3a2818] hover:bg-[#523922] text-amber-200 border border-[#6e4e2d] rounded-lg text-xs font-serif transition-colors cursor-pointer"
-              title="Go to Adventurer Details panel"
-            >
-              <span>Hero Details</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </button>
           </div>
         </div>
 
@@ -695,6 +684,17 @@ export const BackpackPanel: React.FC<BackpackPanelProps> = ({
             </div>
           )}
         </div>
+      </div>
+
+      {/* Bottom Navigation Cue */}
+      <div className="flex items-center justify-end text-xs font-serif pt-1">
+        <button
+          onClick={onGoToAdventurer}
+          className="py-2 px-3 bg-[#241a12] hover:bg-[#382618] border border-[#6b4c2b] text-amber-200 rounded-lg flex items-center gap-2 transition-colors cursor-pointer shadow"
+        >
+          <span>Swipe Right for Adventurer Details</span>
+          <ChevronRight className="w-4 h-4 text-amber-400" />
+        </button>
       </div>
     </div>
   );

@@ -82,9 +82,6 @@ export const AdventurerDetailsPanel: React.FC<AdventurerDetailsPanelProps> = ({
                 <span className="text-[10px] font-mono font-bold bg-[#382717] text-[#e5b967] px-2 py-0.5 rounded border border-[#5c3e23] uppercase">
                   Lv. {hero.level} {hero.classId}
                 </span>
-                <span className="text-[10px] font-mono text-amber-300/80 bg-[#171008] px-2 py-0.5 rounded border border-[#3b2717] hidden xs:inline">
-                  Panel 2 of 4
-                </span>
               </div>
               <div className="text-xs text-stone-400 font-serif flex items-center gap-2 mt-0.5">
                 <span className="text-amber-200 font-bold">AC {computedArmor} Defense</span>
@@ -97,27 +94,6 @@ export const AdventurerDetailsPanel: React.FC<AdventurerDetailsPanelProps> = ({
                 </span>
               </div>
             </div>
-          </div>
-
-          {/* Quick Panel Jump Affordances */}
-          <div className="flex items-center gap-2">
-            <button
-              onClick={onGoToBackpack}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-[#3a2818] hover:bg-[#523922] text-amber-200 border border-[#6e4e2d] rounded-lg text-xs font-serif transition-colors cursor-pointer"
-              title="Swipe left or click to view Backpack"
-            >
-              <ChevronLeft className="w-3.5 h-3.5" />
-              <span>Backpack ({hero.inventory.length})</span>
-            </button>
-
-            <button
-              onClick={onGoToMap}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-[#3a2818] hover:bg-[#523922] text-amber-200 border border-[#6e4e2d] rounded-lg text-xs font-serif transition-colors cursor-pointer"
-              title="Swipe right or click to view Dungeon Map"
-            >
-              <span>Dungeon Map</span>
-              <ChevronRight className="w-3.5 h-3.5" />
-            </button>
           </div>
         </div>
 

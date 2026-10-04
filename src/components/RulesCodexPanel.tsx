@@ -34,24 +34,12 @@ export const RulesCodexPanel: React.FC<RulesCodexPanelProps> = ({
                 <h2 className="text-base sm:text-lg font-serif font-black text-[#f5e4c6] leading-tight">
                   Rules & Lore Codex
                 </h2>
-                <span className="text-[10px] font-mono font-bold bg-[#382717] text-amber-300 px-2 py-0.5 rounded border border-[#5c3e23]">
-                  Panel 4 of 4
-                </span>
               </div>
               <span className="text-[11px] font-serif text-stone-400 block">
                 Field guide, resolution mechanics, procedural lookup tables & Hall of Fame
               </span>
             </div>
           </div>
-
-          <button
-            onClick={onGoToMap}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-[#3a2818] hover:bg-[#523922] text-amber-200 border border-[#6e4e2d] rounded-lg text-xs font-serif transition-colors cursor-pointer self-start sm:self-auto"
-            title="Swipe left or click to return to Dungeon Map"
-          >
-            <ChevronLeft className="w-3.5 h-3.5" />
-            <span>Dungeon Map</span>
-          </button>
         </div>
       </div>
 

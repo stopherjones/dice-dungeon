@@ -2155,16 +2155,11 @@ export const CombatView: React.FC<CombatViewProps> = ({
 
           {/* Non-Damage Hero Action Result (e.g. Heal, Buff, Item, Flee Fail) */}
           {combatStep === 'HERO_NON_DAMAGE_RESULT' && actionSummary && (
-            <div className="bg-[#18120c]/95 border-2 border-amber-500 rounded-xl p-6 shadow-2xl space-y-4 animate-fadeIn">
-              <div className="flex items-center justify-between border-b border-amber-900/60 pb-3">
-                <div className="flex items-center gap-2">
-                  <span className="px-2.5 py-0.5 rounded text-xs font-mono font-bold uppercase bg-purple-950 border border-purple-600 text-purple-300">
-                    Action Outcome
-                  </span>
-                  <h3 className="text-xl font-serif font-bold text-amber-200">
-                    {actionSummary.title}
-                  </h3>
-                </div>
+            <div className="bg-[#18120c]/95 border-2 border-amber-500 rounded-xl p-4 sm:p-5 shadow-2xl space-y-3 animate-fadeIn">
+              <div className="border-b border-amber-900/60 pb-2.5">
+                <h3 className="text-lg sm:text-xl font-serif font-bold text-amber-200">
+                  {actionSummary.title}
+                </h3>
               </div>
 
               {/* Visual Action Dice Visualizer */}
@@ -2174,6 +2169,7 @@ export const CombatView: React.FC<CombatViewProps> = ({
                     currentRoll={currentRoll}
                     isRolling={false}
                     allowCustomDice={false}
+                    showFormulaBadge={false}
                     label={actionSummary.title}
                   />
                 </div>
@@ -2251,6 +2247,7 @@ export const CombatView: React.FC<CombatViewProps> = ({
                 currentRoll={currentRoll}
                 isRolling={true}
                 allowCustomDice={false}
+                showFormulaBadge={false}
                 label={`${monster.name} Strike (1d20 + ${monster.attackBonus})`}
               />
               <p className="text-center text-xs text-red-400 font-mono animate-pulse">
@@ -2261,70 +2258,42 @@ export const CombatView: React.FC<CombatViewProps> = ({
 
           {/* STEP 6: Enemy Result Card with Fate Dodge and Explicit "Begin Round" Button */}
           {combatStep === 'ENEMY_RESULT' && actionSummary && (
-            <div className="bg-[#18120c]/95 border-2 border-red-600 rounded-xl p-6 shadow-2xl space-y-4 animate-fadeIn">
-              <div className="flex items-center justify-between border-b border-red-950 pb-3">
-                <div className="flex items-center gap-2">
-                  <span
-                    className={`px-2.5 py-0.5 rounded text-xs font-mono font-bold uppercase ${
-                      actionSummary.isHit
-                        ? 'bg-red-950 border border-red-600 text-red-300'
-                        : 'bg-emerald-950 border border-emerald-600 text-emerald-300'
-                    }`}
-                  >
-                    Enemy Action Outcome
-                  </span>
-                  <h3 className="text-xl font-serif font-bold text-red-200">
-                    {actionSummary.title}
-                  </h3>
-                </div>
-                {currentRoll && (
-                  <span className="font-mono text-xs font-bold px-2 py-1 bg-stone-900 rounded border border-stone-700 text-red-300">
-                    Monster Roll: {currentRoll.total}
-                  </span>
-                )}
+            <div className="bg-[#18120c]/95 border-2 border-red-600 rounded-xl p-4 sm:p-5 shadow-2xl space-y-3 animate-fadeIn">
+              {/* Clean header with action title only (duplications removed) */}
+              <div className="border-b border-red-900/60 pb-2.5">
+                <h3 className="text-lg sm:text-xl font-serif font-bold text-red-200">
+                  {actionSummary.title}
+                </h3>
               </div>
 
-              {/* Visual Enemy Strike Dice Result */}
+              {/* Visual Enemy Strike Dice Result (clean header line + dice and total) */}
               {currentRoll && (
                 <div className="py-1">
                   <DiceVisualizer
                     currentRoll={currentRoll}
                     isRolling={false}
                     allowCustomDice={false}
+                    showFormulaBadge={false}
                     label={`${monster.name} Attack Roll vs Hero AC ${heroAc}`}
                   />
                 </div>
               )}
 
-              <div className="p-4 bg-stone-900/80 rounded-lg border border-red-900/60 text-sm text-stone-200 leading-relaxed font-serif space-y-2">
-                <div className="whitespace-pre-line">{actionSummary.details}</div>
+              {/* Stumbled Turn Skipping Notification */}
+              {combat.heroStumbled && (
+                <div className="p-2.5 bg-gradient-to-r from-red-950 via-amber-950 to-red-950 border border-red-500 rounded-lg text-red-200 text-xs font-serif flex items-center gap-2 shadow">
+                  <AlertTriangle className="w-4 h-4 text-red-400 animate-bounce shrink-0" />
+                  <span><strong>Stumbled & Off-Balance:</strong> You forfeit Round {combat.turnNumber} to steady your stance.</span>
+                </div>
+              )}
 
-                {/* Stumbled Turn Skipping Notification */}
-                {combat.heroStumbled && (
-                  <div className="p-3 bg-gradient-to-r from-red-950/90 via-amber-950/90 to-red-950/90 border-2 border-red-500 rounded-lg text-red-200 text-xs font-serif space-y-1 shadow-lg">
-                    <div className="flex items-center gap-2 font-bold text-red-300">
-                      <AlertTriangle className="w-4 h-4 text-red-400 animate-bounce" />
-                      <span>STUMBLED & OFF-BALANCE (Turn Forfeit Required)</span>
-                    </div>
-                    <p className="text-red-100/90">
-                      Because you rolled a Critical Fumble (Natural 1), you are off-balance and must <strong>FORFEIT Round {combat.turnNumber}</strong> to steady your stance while {monster.name} strikes again!
-                    </p>
-                  </div>
-                )}
-
-                {/* Monster Staggered Notification */}
-                {combat.monsterStumbled && (
-                  <div className="p-3 bg-gradient-to-r from-emerald-950/90 via-[#132c1c] to-emerald-950/90 border-2 border-emerald-500 rounded-lg text-emerald-200 text-xs font-serif space-y-1 shadow-lg">
-                    <div className="flex items-center gap-2 font-bold text-emerald-300">
-                      <Sparkles className="w-4 h-4 text-emerald-400" />
-                      <span>ENEMY STAGGERED & DEFENSES OPEN!</span>
-                    </div>
-                    <p className="text-emerald-100/90">
-                      {monster.name} rolled a Natural 1 Fumble! Its balance is broken, granting you <strong>+2 Advantage Bonus</strong> to your upcoming attack roll!
-                    </p>
-                  </div>
-                )}
-              </div>
+              {/* Monster Staggered Notification */}
+              {combat.monsterStumbled && (
+                <div className="p-2.5 bg-gradient-to-r from-emerald-950 via-[#132c1c] to-emerald-950 border border-emerald-500 rounded-lg text-emerald-200 text-xs font-serif flex items-center gap-2 shadow">
+                  <Sparkles className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span><strong>Enemy Staggered!</strong> Monster rolled Nat 1 Fumble — grants you +2 Advantage next round!</span>
+                </div>
+              )}
 
               {/* Fate Dodge Opportunity when Monster lands a Hit on Hero */}
               {actionSummary.type === 'monster' && actionSummary.isHit && (

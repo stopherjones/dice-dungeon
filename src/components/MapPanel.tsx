@@ -6,9 +6,6 @@
 import React from 'react';
 import {
   Compass,
-  Flame,
-  Key,
-  Utensils,
   ChevronLeft,
   ChevronRight,
   Tent,
@@ -74,54 +71,11 @@ export const MapPanel: React.FC<MapPanelProps> = ({
                 <h2 className="text-base sm:text-lg font-serif font-black text-[#f5e4c6] leading-tight">
                   Floor {floor.floorNumber}: {floor.floorName}
                 </h2>
-                <span className="text-[10px] font-mono font-bold bg-[#382717] text-amber-300 px-2 py-0.5 rounded border border-[#5c3e23]">
-                  Panel 3 of 4
-                </span>
               </div>
               <span className="text-[11px] font-serif text-stone-400 block">
                 Tap adjacent chambers or doors to explore the 4x4 dungeon grid
               </span>
             </div>
-          </div>
-
-          {/* Quick supplies & panel jump button */}
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-2 bg-[#171008] px-2.5 py-1 rounded-lg border border-[#4d321d] text-xs font-mono">
-              <span className="flex items-center gap-1 text-orange-300" title="Torches">
-                <Flame className="w-3.5 h-3.5 text-orange-400" />
-                {hero.torches}
-              </span>
-              <span className="text-stone-600">|</span>
-              <span className="flex items-center gap-1 text-amber-300" title="Rations">
-                <Utensils className="w-3.5 h-3.5 text-amber-400" />
-                {hero.rations}
-              </span>
-              <span className="text-stone-600">|</span>
-              <span className="flex items-center gap-1 text-cyan-300" title="Lockpicks">
-                <Key className="w-3.5 h-3.5 text-cyan-400" />
-                {hero.keys}
-              </span>
-            </div>
-
-            <button
-              onClick={onGoToAdventurer}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-[#3a2818] hover:bg-[#523922] text-amber-200 border border-[#6e4e2d] rounded-lg text-xs font-serif transition-colors cursor-pointer"
-              title="Swipe left or click to return to Adventurer Details"
-            >
-              <ChevronLeft className="w-3.5 h-3.5" />
-              <span>Hero Details</span>
-            </button>
-
-            {onGoToCodex && (
-              <button
-                onClick={onGoToCodex}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-[#3a2818] hover:bg-[#523922] text-amber-200 border border-[#6e4e2d] rounded-lg text-xs font-serif transition-colors cursor-pointer"
-                title="Swipe right or click for Rules Codex"
-              >
-                <span>Rules Codex</span>
-                <ChevronRight className="w-3.5 h-3.5" />
-              </button>
-            )}
           </div>
         </div>
       </div>
