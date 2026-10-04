@@ -25,6 +25,7 @@ interface DiceVisualizerProps {
   defaultSides?: number;
   defaultCount?: number;
   droppedIndices?: number[];
+  showFormulaBadge?: boolean;
 }
 
 export const DiceVisualizer: React.FC<DiceVisualizerProps> = ({
@@ -36,6 +37,7 @@ export const DiceVisualizer: React.FC<DiceVisualizerProps> = ({
   defaultSides = 20,
   defaultCount = 1,
   droppedIndices = [],
+  showFormulaBadge = true,
 }) => {
   // Active custom dice for interactive playground mode if needed
   const [customDice, setCustomDice] = useState<CustomDieItem[]>([
@@ -149,15 +151,17 @@ export const DiceVisualizer: React.FC<DiceVisualizerProps> = ({
             {label}
           </span>
         </div>
-        <div className="flex items-center gap-1.5 font-mono text-xs">
-          <span className="bg-[#111827] px-2.5 py-0.5 rounded-full border border-slate-700 text-cyan-300 font-bold">
-            {currentRoll
-              ? currentRoll.formulaString
-              : `${customDice.length}d${customDice[0]?.sides || 6}${
-                  modifier !== 0 ? (modifier > 0 ? `+${modifier}` : modifier) : ''
-                }`}
-          </span>
-        </div>
+        {showFormulaBadge && (
+          <div className="flex items-center gap-1.5 font-mono text-xs">
+            <span className="bg-[#111827] px-2.5 py-0.5 rounded-full border border-slate-700 text-cyan-300 font-bold">
+              {currentRoll
+                ? currentRoll.formulaString
+                : `${customDice.length}d${customDice[0]?.sides || 6}${
+                    modifier !== 0 ? (modifier > 0 ? `+${modifier}` : modifier) : ''
+                  }`}
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Main Dice Arena (Google Roll Dice Style) */}

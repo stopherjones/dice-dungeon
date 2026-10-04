@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Shield,
   Volume2,
@@ -20,6 +20,9 @@ import {
   CheckCircle2,
   ArrowDownCircle,
   Store,
+  Compass,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import {
   CombatState,
@@ -34,6 +37,11 @@ import {
 import { CharacterCreation } from './components/CharacterCreation';
 import { CharacterSheet } from './components/CharacterSheet';
 import { DungeonMap } from './components/DungeonMap';
+import { BackpackPanel } from './components/BackpackPanel';
+import { AdventurerDetailsPanel } from './components/AdventurerDetailsPanel';
+import { MapPanel } from './components/MapPanel';
+import { RulesCodexPanel } from './components/RulesCodexPanel';
+import { RuleTab } from './components/RulesCodexView';
 import { RoomModal } from './components/RoomModal';
 import { MerchantModal } from './components/MerchantModal';
 import { InventoryModal } from './components/InventoryModal';
@@ -56,6 +64,8 @@ import {
   syncHeroSupplies,
 } from './utils/inventory';
 import { getHeroSkillsForLevel } from './utils/skills';
+
+type GamePanelId = 'backpack' | 'adventurer' | 'map' | 'codex';
 
 export default function App() {
   const [gameState, setGameState] = useState<GameState>(() => {
@@ -81,7 +91,7 @@ export default function App() {
   const [showRoomModal, setShowRoomModal] = useState(false);
   const [showInventory, setShowInventory] = useState(false);
   const [showMerchant, setShowMerchant] = useState(false);
-  const [showRulebook, setShowRulebook] = useState(true);
+  const [showRulebook, setShowRulebook] = useState(false);
   const [showHallOfFame, setShowHallOfFame] = useState(false);
   const [showJournal, setShowJournal] = useState(false);
   const [showTableInspector, setShowTableInspector] = useState(false);
@@ -91,6 +101,13 @@ export default function App() {
     reward: { xp: number; gold: number; items: GameItem[] };
   } | null>(null);
 
+  // 4-Panel Swipe Navigation: Backpack (left), Adventurer (middle-left), Map (middle-right), Rules Codex (right)
+  const [activePanel, setActivePanel] = useState<GamePanelId>('adventurer');
+  const [codexTab, setCodexTab] = useState<RuleTab>('dice');
+  const panelsContainerRef = useRef<HTMLDivElement>(null);
+  const touchStartX = useRef<number | null>(null);
+  const touchStartY = useRef<number | null>(null);
+
   // Active Map Action (triggered from Backpack or Map UI)
   const [activeMapAction, setActiveMapAction] = useState<
     'TORCH' | 'CLAIRVOYANCE' | 'SPYGLASS' | 'SMASH_WALL' | 'PHASE_WALL' | null
@@ -98,6 +115,102 @@ export default function App() {
 
   // Track previous room for fleeing
   const [previousRoomId, setPreviousRoomId] = useState<string>('');
+
+  // Smoothly scroll container to target panel
+  const handleNavigatePanel = (targetPanel: GamePanelId, targetTab?: RuleTab) => {
+    setActivePanel(targetPanel);
+    if (targetTab) {
+      setCodexTab(targetTab);
+    }
+    const container = panelsContainerRef.current;
+    if (!container) return;
+    const panelIndex =
+      targetPanel === 'backpack' ? 0 : targetPanel === 'adventurer' ? 1 : targetPanel === 'map' ? 2 : 3;
+    container.scrollTo({
+      left: panelIndex * container.clientWidth,
+      behavior: 'smooth',
+    });
+  };
+
+  // Sync scroll position with activePanel state during swipe/scroll
+  const handlePanelsScroll = () => {
+    const container = panelsContainerRef.current;
+    if (!container) return;
+    const { scrollLeft, clientWidth } = container;
+    if (clientWidth === 0) return;
+    const index = Math.round(scrollLeft / clientWidth);
+    const panels: GamePanelId[] = ['backpack', 'adventurer', 'map', 'codex'];
+    const resolved = panels[index];
+    if (resolved && resolved !== activePanel) {
+      setActivePanel(resolved);
+    }
+  };
+
+  // Touch gesture swipe handling
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartX.current === null || touchStartY.current === null) return;
+    const deltaX = e.changedTouches[0].clientX - touchStartX.current;
+    const deltaY = e.changedTouches[0].clientY - touchStartY.current;
+
+    // Detect dominant horizontal swipe gesture
+    if (Math.abs(deltaX) > 40 && Math.abs(deltaX) > Math.abs(deltaY) * 1.3) {
+      if (deltaX < 0) {
+        // Swiped left -> move right
+        if (activePanel === 'backpack') handleNavigatePanel('adventurer');
+        else if (activePanel === 'adventurer') handleNavigatePanel('map');
+        else if (activePanel === 'map') handleNavigatePanel('codex');
+      } else {
+        // Swiped right -> move left
+        if (activePanel === 'codex') handleNavigatePanel('map');
+        else if (activePanel === 'map') handleNavigatePanel('adventurer');
+        else if (activePanel === 'adventurer') handleNavigatePanel('backpack');
+      }
+    }
+    touchStartX.current = null;
+    touchStartY.current = null;
+  };
+
+  // Keyboard navigation with Arrow keys
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (gameState.phase === 'CHARACTER_CREATION') return;
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return;
+
+      if (e.key === 'ArrowLeft') {
+        if (activePanel === 'codex') handleNavigatePanel('map');
+        else if (activePanel === 'map') handleNavigatePanel('adventurer');
+        else if (activePanel === 'adventurer') handleNavigatePanel('backpack');
+      } else if (e.key === 'ArrowRight') {
+        if (activePanel === 'backpack') handleNavigatePanel('adventurer');
+        else if (activePanel === 'adventurer') handleNavigatePanel('map');
+        else if (activePanel === 'map') handleNavigatePanel('codex');
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [activePanel, gameState.phase]);
+
+  // Maintain panel alignment on window resize
+  useEffect(() => {
+    const handleResize = () => {
+      const container = panelsContainerRef.current;
+      if (!container) return;
+      const idx =
+        activePanel === 'backpack' ? 0 : activePanel === 'adventurer' ? 1 : activePanel === 'map' ? 2 : 3;
+      container.scrollTo({
+        left: idx * container.clientWidth,
+        behavior: 'auto',
+      });
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [activePanel]);
 
   // Persist state to localStorage on update
   useEffect(() => {
@@ -152,6 +265,10 @@ export default function App() {
     });
     setPreviousRoomId(startRoomId);
     setShowRoomModal(false);
+    setActivePanel('adventurer');
+    setTimeout(() => {
+      handleNavigatePanel('adventurer');
+    }, 50);
   };
 
   // Toggle Sound FX
@@ -278,6 +395,7 @@ export default function App() {
     setShowInventory(false);
     setShowRoomModal(false);
     setActiveMapAction(action);
+    handleNavigatePanel('map');
   };
 
   // Smash an interior stone wall with sledgehammer or pickaxe
@@ -632,61 +750,133 @@ export default function App() {
   return (
     <div className="min-h-screen bg-[#140e08] text-[#f4ecd8] font-serif flex flex-col selection:bg-amber-800 selection:text-amber-100 overflow-x-hidden w-full max-w-full">
       {/* Top Medieval Header Bar */}
-      <header className="bg-[#21170f] border-b-2 border-[#6d4f32] px-2.5 sm:px-4 py-2.5 shadow-md flex items-center justify-between sticky top-0 z-40">
-        <div className="flex items-center gap-2.5">
+      <header className="bg-[#21170f] border-b-2 border-[#6d4f32] px-2.5 sm:px-4 py-2 shadow-md flex items-center justify-between sticky top-0 z-40 shrink-0">
+        {/* Left: Brand Wordmark */}
+        <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
           <div className="p-1.5 bg-[#422c19] rounded border border-[#7d5836] text-amber-300">
-            <Flame className="w-5 h-5 text-orange-400" />
+            <Flame className="w-4 h-4 sm:w-5 sm:h-5 text-orange-400" />
           </div>
           <div>
-            <h1 className="text-base md:text-lg font-serif font-black text-[#fae9cb] tracking-wide leading-none">
+            <h1 className="text-sm sm:text-base md:text-lg font-serif font-black text-[#fae9cb] tracking-wide leading-none">
               DUNGEON DICE CRAWLER
             </h1>
-            <span className="text-[10px] text-[#c9a674] font-mono block mt-0.5">
-              Burgle Bros Grid & Old School Solo Paper RPG
+            <span className="text-[9px] sm:text-[10px] text-[#c9a674] font-mono block mt-0.5">
+              Solo Paper RPG {gameState.phase !== 'CHARACTER_CREATION' ? `• Floor ${gameState.currentFloor}` : ''}
             </span>
           </div>
         </div>
 
-        {/* Global Toolbar Buttons */}
-        <div className="flex items-center gap-1.5 md:gap-2">
+        {/* Center: Navigation Pill for 4 Game Panels (Backpack, Adventurer, Map, Rules Codex) */}
+        {gameState.phase !== 'CHARACTER_CREATION' && gameState.hero && (
+          <nav
+            id="header-panel-navigation-pill"
+            className="flex items-center p-0.5 sm:p-1 bg-[#160f08] rounded-full border border-[#5a3f28] shadow-inner text-xs font-serif shrink-0 mx-1 sm:mx-2"
+            aria-label="Panel Navigation"
+          >
+            <button
+              id="btn-pill-backpack"
+              onClick={() => handleNavigatePanel('backpack')}
+              className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 md:px-3 py-1 rounded-full text-xs font-serif font-bold transition-all cursor-pointer ${
+                activePanel === 'backpack'
+                  ? 'bg-gradient-to-r from-amber-700 to-amber-800 text-amber-100 shadow-md border border-amber-500/60'
+                  : 'text-stone-400 hover:text-amber-200'
+              }`}
+              title="View Backpack & Equipment (Panel 1)"
+            >
+              <Package className="w-3.5 h-3.5 text-amber-400" />
+              <span className="hidden xs:inline">Backpack</span>
+            </button>
+
+            <button
+              id="btn-pill-adventurer"
+              onClick={() => handleNavigatePanel('adventurer')}
+              className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 md:px-3 py-1 rounded-full text-xs font-serif font-bold transition-all cursor-pointer ${
+                activePanel === 'adventurer'
+                  ? 'bg-gradient-to-r from-amber-700 to-amber-800 text-amber-100 shadow-md border border-amber-500/60'
+                  : 'text-stone-400 hover:text-amber-200'
+              }`}
+              title="View Adventurer Details (Panel 2)"
+            >
+              <Shield className="w-3.5 h-3.5 text-amber-400" />
+              <span className="hidden xs:inline">Adventurer</span>
+            </button>
+
+            <button
+              id="btn-pill-map"
+              onClick={() => handleNavigatePanel('map')}
+              className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 md:px-3 py-1 rounded-full text-xs font-serif font-bold transition-all cursor-pointer ${
+                activePanel === 'map'
+                  ? 'bg-gradient-to-r from-amber-700 to-amber-800 text-amber-100 shadow-md border border-amber-500/60'
+                  : 'text-stone-400 hover:text-amber-200'
+              }`}
+              title="View Dungeon Map & Chambers (Panel 3)"
+            >
+              <Compass className="w-3.5 h-3.5 text-amber-400" />
+              <span className="hidden xs:inline">Map</span>
+            </button>
+
+            <button
+              id="btn-pill-codex"
+              onClick={() => handleNavigatePanel('codex')}
+              className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 md:px-3 py-1 rounded-full text-xs font-serif font-bold transition-all cursor-pointer ${
+                activePanel === 'codex'
+                  ? 'bg-gradient-to-r from-amber-700 to-amber-800 text-amber-100 shadow-md border border-amber-500/60'
+                  : 'text-stone-400 hover:text-amber-200'
+              }`}
+              title="View Rules Codex, Tables & Leaderboard (Panel 4)"
+            >
+              <BookOpen className="w-3.5 h-3.5 text-amber-400" />
+              <span className="hidden xs:inline">Codex</span>
+            </button>
+          </nav>
+        )}
+
+        {/* Right: Global Toolbar Buttons */}
+        <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
           {/* Tables Codex Inspector Button */}
           <button
             id="btn-nav-tables-codex"
-            onClick={() => setShowTableInspector(true)}
-            className="px-2.5 py-1 bg-amber-950/70 hover:bg-amber-900 text-amber-300 border border-amber-600 rounded text-xs font-serif flex items-center gap-1.5 transition-colors cursor-pointer shadow-sm"
+            onClick={() => {
+              if (gameState.phase !== 'CHARACTER_CREATION' && gameState.hero) {
+                handleNavigatePanel('codex', 'tables');
+              } else {
+                setShowTableInspector(true);
+              }
+            }}
+            className="px-2 sm:px-2.5 py-1 bg-amber-950/70 hover:bg-amber-900 text-amber-300 border border-amber-600 rounded text-xs font-serif flex items-center gap-1.5 transition-colors cursor-pointer shadow-sm"
             title="Lookup Tables & Dice Codex"
           >
             <Dices className="w-3.5 h-3.5 text-amber-400" />
-            <span className="hidden sm:inline">Lookup Tables</span>
+            <span className="hidden md:inline">Tables</span>
           </button>
-
-          {gameState.phase !== 'CHARACTER_CREATION' && (
-            <button
-              id="btn-nav-inventory"
-              onClick={() => setShowInventory(true)}
-              className="px-2.5 py-1 bg-[#332214] hover:bg-[#4a321e] text-amber-200 border border-[#6b4a2b] rounded text-xs font-serif flex items-center gap-1.5 transition-colors cursor-pointer"
-              title="Inventory & Equipment"
-            >
-              <Package className="w-3.5 h-3.5 text-amber-400" />
-              <span className="hidden sm:inline">Backpack</span>
-            </button>
-          )}
 
           <button
             id="btn-nav-rulebook"
-            onClick={() => setShowRulebook(true)}
-            className="px-2.5 py-1 bg-[#332214] hover:bg-[#4a321e] text-amber-200 border border-[#6b4a2b] rounded text-xs font-serif flex items-center gap-1.5 transition-colors cursor-pointer"
+            onClick={() => {
+              if (gameState.phase !== 'CHARACTER_CREATION' && gameState.hero) {
+                handleNavigatePanel('codex', 'dice');
+              } else {
+                setShowRulebook(true);
+              }
+            }}
+            className="px-2 sm:px-2.5 py-1 bg-[#332214] hover:bg-[#4a321e] text-amber-200 border border-[#6b4a2b] rounded text-xs font-serif flex items-center gap-1.5 transition-colors cursor-pointer"
             title="Field Manual & Rules"
           >
             <BookOpen className="w-3.5 h-3.5 text-amber-400" />
-            <span className="hidden sm:inline">Rules</span>
+            <span className="hidden md:inline">Rules</span>
           </button>
 
           <button
             id="btn-nav-hall-of-fame"
-            onClick={() => setShowHallOfFame(true)}
-            className="px-2 py-1 bg-[#332214] hover:bg-[#4a321e] text-amber-200 border border-[#6b4a2b] rounded text-xs font-serif flex items-center gap-1.5 transition-colors cursor-pointer"
-            title="Hall of Fame"
+            onClick={() => {
+              if (gameState.phase !== 'CHARACTER_CREATION' && gameState.hero) {
+                handleNavigatePanel('codex', 'leaderboard');
+              } else {
+                setShowHallOfFame(true);
+              }
+            }}
+            className="p-1.5 sm:px-2 sm:py-1 bg-[#332214] hover:bg-[#4a321e] text-amber-200 border border-[#6b4a2b] rounded text-xs font-serif flex items-center gap-1 transition-colors cursor-pointer"
+            title="Leaderboard & Hall of Fame"
           >
             <Trophy className="w-3.5 h-3.5 text-yellow-400" />
           </button>
@@ -718,113 +908,144 @@ export default function App() {
       </header>
 
       {/* Main Content Area */}
-      <main className="flex-1 p-3 md:p-5 max-w-7xl w-full mx-auto">
+      <main className="flex-1 w-full max-w-full overflow-hidden flex flex-col relative h-[calc(100dvh-52px)]">
         {gameState.phase === 'CHARACTER_CREATION' && (
-          <CharacterCreation onCharacterCreated={handleCharacterCreated} />
+          <div className="flex-1 overflow-y-auto p-3 sm:p-5 max-w-5xl mx-auto w-full">
+            <CharacterCreation onCharacterCreated={handleCharacterCreated} />
+          </div>
         )}
 
         {gameState.phase !== 'CHARACTER_CREATION' && gameState.hero && currentFloorObj && (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 max-w-6xl mx-auto">
-            {/* Left Column: Character Sheet */}
-            <div className="lg:col-span-5 flex flex-col gap-4">
-              <CharacterSheet
-                hero={gameState.hero}
-                onOpenInventory={() => setShowInventory(true)}
-                onOpenJournal={() => setShowJournal(true)}
-              />
-            </div>
+          <div className="flex-1 w-full h-full relative overflow-hidden flex flex-col">
+            {/* Desktop Left/Right Quick Jump Floating Chevrons */}
+            {activePanel !== 'backpack' && (
+              <button
+                onClick={() =>
+                  handleNavigatePanel(
+                    activePanel === 'codex'
+                      ? 'map'
+                      : activePanel === 'map'
+                        ? 'adventurer'
+                        : 'backpack'
+                  )
+                }
+                className="hidden xl:flex fixed left-3 top-1/2 -translate-y-1/2 z-30 p-2.5 bg-[#21170f]/90 hover:bg-[#382618] border border-[#6b4c2b] text-amber-200 rounded-full shadow-2xl backdrop-blur-sm cursor-pointer transition-all hover:scale-110 active:scale-95 items-center gap-1"
+                title={`Jump to ${
+                  activePanel === 'codex'
+                    ? 'Dungeon Map'
+                    : activePanel === 'map'
+                      ? 'Adventurer Details'
+                      : 'Backpack'
+                }`}
+              >
+                <ChevronLeft className="w-5 h-5 text-amber-400" />
+              </button>
+            )}
 
-            {/* Right Column: 4x4 Floor Map & Active Chamber Hub */}
-            <div className="lg:col-span-7 flex flex-col gap-4">
-              <DungeonMap
-                floor={currentFloorObj}
-                currentRoomId={gameState.currentRoomId}
-                hero={gameState.hero}
-                activeMapAction={activeMapAction}
-                onClearMapAction={() => setActiveMapAction(null)}
-                onSelectAdjacentRoom={handleNavigateToRoom}
-                onSmashWall={handleSmashWall}
-                onPhaseThroughWall={handlePhaseThroughWall}
-                onUseTorch={handleUseTorch}
-                onUseClairvoyance={handleUseClairvoyance}
-                onUseSpyglass={handleUseSpyglass}
-                onOpenCurrentRoom={() => setShowRoomModal(true)}
-                onDescendFloor={handleDescendFloor}
-              />
+            {activePanel !== 'codex' && (
+              <button
+                onClick={() =>
+                  handleNavigatePanel(
+                    activePanel === 'backpack'
+                      ? 'adventurer'
+                      : activePanel === 'adventurer'
+                        ? 'map'
+                        : 'codex'
+                  )
+                }
+                className="hidden xl:flex fixed right-3 top-1/2 -translate-y-1/2 z-30 p-2.5 bg-[#21170f]/90 hover:bg-[#382618] border border-[#6b4c2b] text-amber-200 rounded-full shadow-2xl backdrop-blur-sm cursor-pointer transition-all hover:scale-110 active:scale-95 items-center gap-1"
+                title={`Jump to ${
+                  activePanel === 'backpack'
+                    ? 'Adventurer Details'
+                    : activePanel === 'adventurer'
+                      ? 'Dungeon Map'
+                      : 'Rules Codex'
+                }`}
+              >
+                <ChevronRight className="w-5 h-5 text-amber-400" />
+              </button>
+            )}
 
-              {/* Current Chamber Quick Action Card on Main Overview */}
-              {currentRoom && (() => {
-                const currentInfo = getRoomDisplayInfo(currentRoom);
-                const isCurrentPassed = isRoomPassedThrough(currentRoom);
+            {/* 4 Swipeable Panels: Backpack (Left), Adventurer Details (Middle-Left), Map (Middle-Right), Rules Codex (Right) */}
+            <div
+              ref={panelsContainerRef}
+              onScroll={handlePanelsScroll}
+              onTouchStart={handleTouchStart}
+              onTouchEnd={handleTouchEnd}
+              className="w-full h-full flex overflow-x-auto overflow-y-hidden snap-x snap-mandatory scroll-smooth no-scrollbar"
+              style={{ scrollSnapType: 'x mandatory' }}
+            >
+              {/* Panel 1: Backpack (Left) */}
+              <div
+                id="panel-backpack"
+                className="w-full shrink-0 snap-center snap-always h-full overflow-y-auto px-2.5 sm:px-4 py-3 sm:py-4 max-w-4xl mx-auto flex flex-col justify-start"
+              >
+                <BackpackPanel
+                  hero={gameState.hero}
+                  onUpdateHero={(updatedHero) =>
+                    setGameState((prev) => ({ ...prev, hero: updatedHero }))
+                  }
+                  onActivateMapAction={(action) => {
+                    handleActivateMapAction(action);
+                    handleNavigatePanel('map');
+                  }}
+                  onGoToAdventurer={() => handleNavigatePanel('adventurer')}
+                  onGoToMap={() => handleNavigatePanel('map')}
+                />
+              </div>
 
-                return (
-                  <div className="bg-[#241a12] border-2 border-[#735438] rounded-xl p-4 text-stone-200 shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                    <div>
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="font-mono text-xs bg-[#19110a] text-amber-300 px-2 py-0.5 rounded border border-[#4d341f]">
-                          Chamber [{currentRoom.gridX + 1},{currentRoom.gridY + 1}]
-                        </span>
-                        <h3 className="font-serif font-bold text-base text-[#f5e4c6]">{currentInfo.title}</h3>
-                      </div>
-                      <p className="text-xs text-stone-300 font-serif line-clamp-2">
-                        {currentInfo.description}
-                      </p>
-                    </div>
+              {/* Panel 2: Adventurer Details (Middle-Left) */}
+              <div
+                id="panel-adventurer"
+                className="w-full shrink-0 snap-center snap-always h-full overflow-y-auto px-2.5 sm:px-4 py-3 sm:py-4 max-w-4xl mx-auto flex flex-col justify-start"
+              >
+                <AdventurerDetailsPanel
+                  hero={gameState.hero}
+                  historyLog={gameState.historyLog}
+                  onOpenInventory={() => handleNavigatePanel('backpack')}
+                  onOpenJournal={() => setShowJournal(true)}
+                  onGoToBackpack={() => handleNavigatePanel('backpack')}
+                  onGoToMap={() => handleNavigatePanel('map')}
+                />
+              </div>
 
-                    {currentRoom.type === 'CAMPFIRE' ? (
-                      <div className="flex items-center gap-2 shrink-0">
-                        <div className="text-[11px] text-amber-300 font-serif bg-[#241a12] px-3 py-1.5 rounded-lg border border-amber-700/60 shadow flex items-center gap-2">
-                          <Tent className="w-4 h-4 text-amber-500 shrink-0" />
-                          <div>
-                            <span className="font-bold text-amber-200 block">Entrance Sanctuary</span>
-                            <span className="block text-[10px] text-amber-300/70">Restored on descent</span>
-                          </div>
-                        </div>
-                        <button
-                          id="btn-main-open-backpack"
-                          onClick={() => setShowInventory(true)}
-                          className="py-2.5 px-3 bg-[#382617] hover:bg-[#4d3521] text-amber-200 border border-[#6b4c2b] rounded-lg text-xs font-serif font-bold flex items-center justify-center gap-1.5 cursor-pointer shadow transition-all hover:scale-105 active:scale-95"
-                          title="Open backpack to use rations or potions"
-                        >
-                          <Package className="w-4 h-4 text-amber-300" />
-                          <span>Backpack</span>
-                        </button>
-                      </div>
-                    ) : currentRoom.isBossRoom && currentRoom.isStairsUnlocked ? (
-                      <button
-                        id="btn-main-descend-stairs"
-                        onClick={handleDescendFloor}
-                        className="px-4 py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-stone-950 font-serif font-black text-xs rounded-lg shadow-lg flex items-center justify-center gap-2 cursor-pointer shrink-0 active:scale-95 transition-all"
-                      >
-                        <ArrowDownCircle className="w-4 h-4 text-stone-950" />
-                        <span>Descend Stairs to Floor {gameState.currentFloor + 1} ➔</span>
-                      </button>
-                    ) : currentRoom.type === 'MERCHANT' ? (
-                      <button
-                        id="btn-main-trade-merchant"
-                        onClick={() => setShowRoomModal(true)}
-                        className="px-4 py-2.5 bg-gradient-to-r from-emerald-700 to-emerald-800 hover:from-emerald-600 hover:to-emerald-700 text-emerald-100 font-serif font-bold text-xs rounded-lg shadow-lg flex items-center justify-center gap-2 cursor-pointer shrink-0 active:scale-95 transition-all"
-                      >
-                        <Store className="w-4 h-4 text-emerald-300" />
-                        <span>Trade with Merchant ➔</span>
-                      </button>
-                    ) : isCurrentPassed ? (
-                      <div className="flex items-center gap-2 bg-[#172417] text-emerald-300 border border-emerald-700/60 px-3.5 py-2 rounded-lg text-xs font-serif font-bold shrink-0 shadow">
-                        <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                        <span>Chamber Cleared & Secure</span>
-                      </div>
-                    ) : (
-                      <button
-                        id="btn-main-open-chamber-modal"
-                        onClick={() => setShowRoomModal(true)}
-                        className="px-4 py-2.5 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-stone-950 font-serif font-black text-xs rounded-lg shadow-lg flex items-center justify-center gap-2 cursor-pointer shrink-0 active:scale-95 transition-all"
-                      >
-                        <span>Enter Chamber Pop-Up ➔</span>
-                      </button>
-                    )}
-                  </div>
-                );
-              })()}
+              {/* Panel 3: Map (Middle-Right) */}
+              <div
+                id="panel-map"
+                className="w-full shrink-0 snap-center snap-always h-full overflow-y-auto px-2.5 sm:px-4 py-3 sm:py-4 max-w-4xl mx-auto flex flex-col justify-start"
+              >
+                <MapPanel
+                  floor={currentFloorObj}
+                  currentRoomId={gameState.currentRoomId}
+                  hero={gameState.hero}
+                  activeMapAction={activeMapAction}
+                  onClearMapAction={() => setActiveMapAction(null)}
+                  onSelectAdjacentRoom={handleNavigateToRoom}
+                  onSmashWall={handleSmashWall}
+                  onPhaseThroughWall={handlePhaseThroughWall}
+                  onUseTorch={handleUseTorch}
+                  onUseClairvoyance={handleUseClairvoyance}
+                  onUseSpyglass={handleUseSpyglass}
+                  onOpenCurrentRoom={() => setShowRoomModal(true)}
+                  onDescendFloor={handleDescendFloor}
+                  onGoToAdventurer={() => handleNavigatePanel('adventurer')}
+                  onGoToBackpack={() => handleNavigatePanel('backpack')}
+                  onGoToCodex={() => handleNavigatePanel('codex')}
+                />
+              </div>
+
+              {/* Panel 4: Rules Codex (Right of Map) */}
+              <div
+                id="panel-codex"
+                className="w-full shrink-0 snap-center snap-always h-full overflow-y-auto px-2.5 sm:px-4 py-3 sm:py-4 max-w-4xl mx-auto flex flex-col justify-start"
+              >
+                <RulesCodexPanel
+                  onGoToMap={() => handleNavigatePanel('map')}
+                  initialTab={codexTab}
+                  activeTab={codexTab}
+                  onTabChange={(tab) => setCodexTab(tab)}
+                />
+              </div>
             </div>
           </div>
         )}

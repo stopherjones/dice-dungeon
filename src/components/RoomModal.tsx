@@ -191,56 +191,44 @@ export const RoomModal: React.FC<RoomModalProps> = ({
         className="bg-[#1c130c] border-2 border-[#785536] rounded-2xl w-full max-w-5xl shadow-[0_0_50px_rgba(0,0,0,0.85)] max-h-[92vh] flex flex-col overflow-hidden my-auto"
       >
         {/* Sticky Top Header Bar */}
-        <div className="bg-[#150e08] border-b-2 border-[#523821] p-3 sm:p-4 shrink-0 shadow-md transition-all duration-200">
+        <div className={`bg-[#150e08] border-b-2 border-[#523821] ${combat ? 'p-2 sm:p-2.5' : 'p-3 sm:p-4'} shrink-0 shadow-md transition-all duration-200`}>
           {combat ? (
-            /* COMBAT HEADER: Always visible expanded duel HUD with names, stats & matching mini bars */
-            <div className="flex flex-col gap-2 animate-fadeIn">
-              <div className="grid grid-cols-1 md:grid-cols-12 gap-2.5 items-center">
-                {/* Left: Hero Combatant HUD (Col 1-5 on md+) */}
-                <div className="md:col-span-5 bg-[#1a110a] border border-amber-900/60 rounded-xl p-2.5 flex flex-col gap-2 shadow-sm">
-                  {/* Hero Identity & AC */}
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-1.5 min-w-0">
-                      <span className="font-mono text-[10px] bg-[#29170c] text-amber-400 px-1.5 py-0.5 rounded border border-[#523015] font-bold shrink-0">
-                        [{room.gridX + 1},{room.gridY + 1}]
-                      </span>
-                      <h3 className="font-serif font-black text-amber-100 text-xs sm:text-sm truncate">
-                        {hero.name}
-                      </h3>
-                      <span className="text-[10px] font-mono text-amber-400/80 shrink-0 capitalize">
-                        Lvl {hero.level} {hero.classId}
-                      </span>
-                    </div>
+            /* COMBAT HEADER: Compact side-by-side duel HUD with names, AC, and mini HP/EP bars (no icons, pure letters) */
+            <div className="flex flex-col gap-1.5 animate-fadeIn">
+              <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1.5 sm:gap-2.5">
+                {/* Left: Hero / Character Area */}
+                <div className="bg-[#1a110a] border border-amber-900/60 rounded-lg p-1.5 sm:p-2 flex flex-col gap-1 shadow-sm min-w-0">
+                  {/* Top row: Character name at top left, AC at top right */}
+                  <div className="flex items-center justify-between gap-1.5 leading-tight">
+                    <h3 className="font-serif font-black text-amber-100 text-xs sm:text-sm truncate">
+                      {hero.name}
+                    </h3>
 
-                    {/* Hero AC Badge */}
+                    {/* Hero AC Badge at top right (no shield icon) */}
                     <div
-                      className="flex items-center gap-1 bg-[#100a06] px-2 py-0.5 rounded border border-blue-900/70 text-xs font-mono shrink-0"
+                      className="flex items-center gap-1 bg-[#100a06] px-1.5 py-0.5 rounded border border-blue-900/70 text-[10px] sm:text-xs font-mono shrink-0"
                       title={`Hero Armor Class: ${heroAc}`}
                     >
-                      <Shield className="w-3.5 h-3.5 text-blue-400 shrink-0" />
                       <span className="font-bold text-blue-200">AC {heroAc}</span>
                       {(combat.heroDefending || combat.heroCatchingBreath) && (
-                        <span className="text-[9px] text-emerald-300 bg-emerald-950 border border-emerald-600 px-1 rounded font-bold animate-pulse">
+                        <span className="text-[9px] text-emerald-300 bg-emerald-950 border border-emerald-600 px-0.5 rounded font-bold animate-pulse">
                           +4
                         </span>
                       )}
                     </div>
                   </div>
 
-                  {/* Hero Stats & Mini Progress Bars */}
-                  <div className="grid grid-cols-2 gap-2 font-mono text-xs">
-                    {/* Hero HP with Mini Bar */}
-                    <div className="bg-[#100a06] px-2 py-1 rounded border border-stone-800 flex flex-col gap-1">
-                      <div className="flex items-center justify-between text-[11px]">
-                        <div className="flex items-center gap-1 text-emerald-400 font-bold">
-                          <Heart className="w-3 h-3 fill-emerald-400/20 shrink-0" />
-                          <span>HP</span>
-                        </div>
+                  {/* Second row: Smaller HP, EP side by side (no heart/sparkles icons) */}
+                  <div className="grid grid-cols-2 gap-1 sm:gap-1.5 font-mono text-[10px] sm:text-[11px]">
+                    {/* Hero HP */}
+                    <div className="bg-[#100a06] px-1.5 py-0.5 rounded border border-stone-800 flex flex-col gap-0.5">
+                      <div className="flex items-center justify-between leading-none">
+                        <span className="text-emerald-400 font-bold">HP</span>
                         <span className="text-emerald-300 font-bold">
-                          {hero.currentHp} / {hero.maxHp}
+                          {hero.currentHp}/{hero.maxHp}
                         </span>
                       </div>
-                      <div className="w-full bg-stone-900 rounded-full h-1.5 border border-stone-800 overflow-hidden">
+                      <div className="w-full bg-stone-900 rounded-full h-1 border border-stone-800 overflow-hidden">
                         <div
                           className="bg-gradient-to-r from-emerald-600 to-emerald-400 h-full transition-all duration-300 rounded-full"
                           style={{ width: `${hpPercent}%` }}
@@ -248,18 +236,15 @@ export const RoomModal: React.FC<RoomModalProps> = ({
                       </div>
                     </div>
 
-                    {/* Hero Energy/Mana with Mini Bar */}
-                    <div className="bg-[#100a06] px-2 py-1 rounded border border-stone-800 flex flex-col gap-1">
-                      <div className="flex items-center justify-between text-[11px]">
-                        <div className="flex items-center gap-1 text-cyan-400 font-bold">
-                          <Sparkles className="w-3 h-3 shrink-0" />
-                          <span>EP</span>
-                        </div>
+                    {/* Hero EP */}
+                    <div className="bg-[#100a06] px-1.5 py-0.5 rounded border border-stone-800 flex flex-col gap-0.5">
+                      <div className="flex items-center justify-between leading-none">
+                        <span className="text-cyan-400 font-bold">EP</span>
                         <span className="text-cyan-300 font-bold">
-                          {hero.currentMana} / {hero.maxMana}
+                          {hero.currentMana}/{hero.maxMana}
                         </span>
                       </div>
-                      <div className="w-full bg-stone-900 rounded-full h-1.5 border border-stone-800 overflow-hidden">
+                      <div className="w-full bg-stone-900 rounded-full h-1 border border-stone-800 overflow-hidden">
                         <div
                           className="bg-gradient-to-r from-blue-600 to-cyan-400 h-full transition-all duration-300 rounded-full"
                           style={{ width: `${mpPercent}%` }}
@@ -268,7 +253,7 @@ export const RoomModal: React.FC<RoomModalProps> = ({
                     </div>
                   </div>
 
-                  {/* Active Spell Buffs / Stances (if any) */}
+                  {/* Active Spell Buffs / Stances (compact, if any) */}
                   {hero.activeEffects && hero.activeEffects.length > 0 && (
                     <div className="flex flex-wrap gap-1 pt-0.5">
                       {hero.activeEffects.map((eff) => {
@@ -283,12 +268,10 @@ export const RoomModal: React.FC<RoomModalProps> = ({
                           <span
                             key={eff.id}
                             title={eff.description}
-                            className="text-[9px] font-mono font-bold px-1.5 py-0.2 rounded bg-blue-950/80 text-blue-200 border border-blue-700/80 flex items-center gap-1 shadow-sm"
+                            className="text-[8px] sm:text-[9px] font-mono font-bold px-1 py-0.2 rounded bg-blue-950/80 text-blue-200 border border-blue-700/80 flex items-center shadow-sm"
                           >
-                            <Sparkles className="w-2.5 h-2.5 text-blue-400" />
-                            <span className="truncate max-w-[80px]">{eff.name}</span>
-                            {bonusText && <span className="text-amber-300">({bonusText})</span>}
-                            <span className="text-stone-400">[{eff.durationTurns}t]</span>
+                            <span className="truncate max-w-[65px]">{eff.name}</span>
+                            {bonusText && <span className="text-amber-300 ml-1">({bonusText})</span>}
                           </span>
                         );
                       })}
@@ -296,69 +279,46 @@ export const RoomModal: React.FC<RoomModalProps> = ({
                   )}
                 </div>
 
-                {/* Center: VS Badge & Round Counter (Col 6-7 on md+) */}
-                <div className="md:col-span-2 flex md:flex-col items-center justify-center gap-1.5 sm:gap-2 py-0.5">
-                  <span className="px-3 py-0.5 rounded-full bg-red-950 border-2 border-red-700 text-red-300 font-mono font-black text-xs shadow-md uppercase tracking-wider">
+                {/* Center: Small Vs between (round number removed) */}
+                <div className="flex items-center justify-center shrink-0 px-0.5">
+                  <span className="px-1.5 py-0.5 rounded bg-red-950/90 border border-red-800 text-red-300 font-mono font-bold text-[9px] sm:text-[10px] uppercase tracking-wider shadow">
                     VS
-                  </span>
-                  <span className="text-[10px] font-mono text-stone-400 font-bold bg-[#120a06] px-2 py-0.5 rounded border border-stone-800">
-                    Round {combat.turnNumber}
                   </span>
                 </div>
 
-                {/* Right: Monster Combatant HUD (Col 8-12 on md+) */}
-                <div className="md:col-span-5 bg-[#1a110a] border border-red-900/60 rounded-xl p-2.5 flex flex-col gap-2 shadow-sm">
-                  {/* Monster Identity & AC/Atk */}
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-1.5 min-w-0">
-                      <Skull className="w-4 h-4 text-red-400 shrink-0" />
+                {/* Right: Monster / Enemy Area */}
+                <div className="bg-[#1a110a] border border-red-900/60 rounded-lg p-1.5 sm:p-2 flex flex-col gap-1 shadow-sm min-w-0">
+                  {/* Top row: Enemy name at top left, AC at top right (no skull/shield icons) */}
+                  <div className="flex items-center justify-between gap-1.5 leading-tight">
+                    <div className="flex items-center gap-1 min-w-0">
                       <h3 className="font-serif font-black text-red-200 text-xs sm:text-sm truncate">
                         {combat.monster.name}
                       </h3>
-                      {combat.monster.isBoss ? (
-                        <span className="px-1.5 py-0.2 rounded bg-amber-950 border border-amber-600 text-amber-300 text-[9px] font-mono font-bold shrink-0">
+                      {combat.monster.isBoss && (
+                        <span className="px-1 py-0.2 rounded bg-amber-950 border border-amber-600 text-amber-300 text-[8px] font-mono font-bold shrink-0">
                           BOSS
-                        </span>
-                      ) : (
-                        <span className="text-[10px] font-mono text-red-400/80 shrink-0">
-                          Lvl {combat.monster.level}
                         </span>
                       )}
                     </div>
 
-                    {/* Monster AC & Atk Modifiers */}
-                    <div className="flex items-center gap-1.5 text-xs font-mono shrink-0">
-                      <div
-                        className="flex items-center gap-1 bg-[#100a06] px-1.5 py-0.5 rounded border border-stone-800"
-                        title={`Armor Class: ${combat.monster.armorClass}`}
-                      >
-                        <Shield className="w-3.5 h-3.5 text-stone-400 shrink-0" />
-                        <span className="font-bold text-amber-300">AC {combat.monster.armorClass}</span>
-                      </div>
-                      <div
-                        className="flex items-center gap-1 bg-[#100a06] px-1.5 py-0.5 rounded border border-red-950"
-                        title={`Attack Modifier: +${combat.monster.attackBonus}`}
-                      >
-                        <Sword className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                        <span className="font-bold text-amber-300">
-                          {combat.monster.attackBonus >= 0 ? `+${combat.monster.attackBonus}` : combat.monster.attackBonus} Atk
-                        </span>
-                      </div>
+                    {/* Monster AC at top right (no shield icon) */}
+                    <div
+                      className="flex items-center bg-[#100a06] px-1.5 py-0.5 rounded border border-stone-800 text-[10px] sm:text-xs font-mono shrink-0"
+                      title={`Armor Class: ${combat.monster.armorClass}`}
+                    >
+                      <span className="font-bold text-amber-300">AC {combat.monster.armorClass}</span>
                     </div>
                   </div>
 
-                  {/* Monster HP with Mini Bar */}
-                  <div className="bg-[#100a06] px-2 py-1 rounded border border-stone-800 flex flex-col gap-1 font-mono">
-                    <div className="flex items-center justify-between text-[11px]">
-                      <div className="flex items-center gap-1 text-red-400 font-bold">
-                        <Heart className="w-3 h-3 fill-red-500/20 shrink-0" />
-                        <span>Monster Vitality</span>
-                      </div>
+                  {/* Second row: Enemy panel has HP (no heart icon) */}
+                  <div className="bg-[#100a06] px-1.5 py-0.5 rounded border border-stone-800 flex flex-col gap-0.5 font-mono text-[10px] sm:text-[11px]">
+                    <div className="flex items-center justify-between leading-none">
+                      <span className="text-red-400 font-bold">HP</span>
                       <span className="text-red-300 font-bold">
-                        {combat.monster.hp} / {combat.monster.maxHp} HP
+                        {combat.monster.hp}/{combat.monster.maxHp}
                       </span>
                     </div>
-                    <div className="w-full bg-stone-900 rounded-full h-1.5 border border-stone-800 overflow-hidden">
+                    <div className="w-full bg-stone-900 rounded-full h-1 border border-stone-800 overflow-hidden">
                       <div
                         className="bg-gradient-to-r from-red-700 via-red-600 to-amber-600 h-full transition-all duration-300 rounded-full"
                         style={{ width: `${monsterHpPercent}%` }}

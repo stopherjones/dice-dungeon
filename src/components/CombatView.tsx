@@ -1703,34 +1703,28 @@ export const CombatView: React.FC<CombatViewProps> = ({
       <div ref={actionZoneRef} className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Left 2 Cols: Main Combat Interaction & Step Card */}
         <div className="lg:col-span-2 space-y-4">
-          {/* STEP 1: Hero Action Choice (With Detailed Explanatory Formulas) */}
+          {/* STEP 1: Hero Action Choice (Compact 2x3 Grid View) */}
           {combatStep === 'HERO_CHOICE' && (
-            <div className="bg-[#18120c]/90 border-2 border-amber-800/60 rounded-xl p-5 shadow-xl space-y-4">
-              <div className="flex items-center justify-between border-b border-amber-900/50 pb-3">
+            <div className="bg-[#18120c]/90 border-2 border-amber-800/60 rounded-xl p-2.5 sm:p-3.5 shadow-xl space-y-2.5">
+              {/* Header with turn and concise critical rules tip */}
+              <div className="flex items-center justify-between border-b border-amber-900/50 pb-2">
                 <div className="flex items-center gap-2">
-                  <span className="px-2.5 py-0.5 rounded bg-emerald-950 border border-emerald-700 text-emerald-400 font-mono text-xs font-bold uppercase">
-                    Your Turn • Round {combat.turnNumber}
+                  <span className="px-2 py-0.5 rounded bg-emerald-950 border border-emerald-700 text-emerald-400 font-mono text-[10px] sm:text-xs font-bold uppercase">
+                    Round {combat.turnNumber} (Your Turn)
                   </span>
-                  <h3 className="text-lg font-serif font-bold text-amber-200">
-                    Select Your Combat Action
+                  <h3 className="text-sm sm:text-base font-serif font-bold text-amber-200">
+                    Select Combat Action
                   </h3>
                 </div>
-              </div>
-
-              {/* Rules summary banner for Critical Outcomes */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-[11px] font-mono px-3 py-1.5 bg-[#140f0a] rounded-lg border border-amber-900/50 text-stone-300 shadow-inner">
-                <div className="flex items-center gap-1.5 text-yellow-300">
-                  <Sparkles className="w-3.5 h-3.5 text-yellow-400 shrink-0" />
-                  <span><strong>Crit Hit (Nat 20):</strong> 2x Damage Multiplier + 3 Brutal Strike</span>
-                </div>
-                <div className="flex items-center gap-1.5 text-red-300">
-                  <AlertTriangle className="w-3.5 h-3.5 text-red-400 shrink-0" />
-                  <span><strong>Crit Fumble (Nat 1):</strong> Stumbled & forfeit next turn (No Fate Rerolls)</span>
+                <div className="flex items-center gap-2 text-[10px] font-mono text-stone-400">
+                  <span className="text-yellow-400 font-bold">Nat 20: 2x Dmg</span>
+                  <span className="text-stone-600">•</span>
+                  <span className="text-red-400 font-bold">Nat 1: Fumble</span>
                 </div>
               </div>
 
-              {/* Action Cards Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* Action Cards 2x3 Grid */}
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                 {/* 1. Attack with Weapon (2 Energy) */}
                 {(() => {
                   const canAfford = hero.currentMana >= 2;
@@ -1739,31 +1733,28 @@ export const CombatView: React.FC<CombatViewProps> = ({
                       id="btn-combat-weapon-attack"
                       onClick={handleHeroAttack}
                       disabled={!canAfford}
-                      className={`p-3.5 border-2 rounded-xl text-left transition-all flex flex-col justify-between shadow-md ${
+                      className={`p-2 sm:p-2.5 border-2 rounded-xl text-left transition-all flex flex-col justify-between shadow-md min-h-[68px] sm:min-h-[74px] ${
                         canAfford
-                          ? 'bg-gradient-to-r from-amber-950/70 via-stone-900 to-stone-900 border-amber-600 hover:border-amber-300 cursor-pointer transform active:scale-98 group'
+                          ? 'bg-gradient-to-br from-amber-950/80 via-stone-900 to-stone-900 border-amber-600/80 hover:border-amber-300 cursor-pointer transform active:scale-98 group'
                           : 'bg-stone-950/40 border-stone-800/80 opacity-50 cursor-not-allowed'
                       }`}
                     >
-                      <div className="flex items-start gap-3 mb-2">
-                        <div className={`p-2 rounded-lg shrink-0 ${canAfford ? 'bg-amber-500/20 text-amber-400 group-hover:scale-110 transition-transform' : 'bg-stone-800 text-stone-500'}`}>
-                          <Sword className="w-5 h-5" />
+                      <div className="flex items-center justify-between gap-1 leading-tight mb-0.5">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <Sword className="w-3.5 h-3.5 text-amber-400 shrink-0 group-hover:scale-110 transition-transform" />
+                          <span className="font-serif font-bold text-amber-200 text-xs truncate">
+                            Attack ({primaryWeapon?.name || 'Fists'})
+                          </span>
                         </div>
-                        <div className="flex-1">
-                          <div className="font-serif font-bold text-amber-200 text-sm flex items-center justify-between">
-                            <span>Attack with {primaryWeapon?.name || 'Bare Fists'}</span>
-                            <span className="text-[10px] font-mono px-1.5 py-0.2 bg-amber-950 text-amber-300 rounded border border-amber-800">
-                              2 EP
-                            </span>
-                          </div>
-                          <div className="text-[11px] text-amber-400/90 font-mono mt-0.5">
-                            Roll: 1d20 {totalWeaponAtkMod >= 0 ? `+ ${totalWeaponAtkMod}` : totalWeaponAtkMod} ({weaponStatBreakdown}) vs AC {monster.armorClass}
-                          </div>
-                        </div>
+                        <span className="text-[9px] font-mono px-1 py-0.2 bg-amber-950 text-amber-300 rounded border border-amber-800 font-bold shrink-0">
+                          2 EP
+                        </span>
                       </div>
-                      <div className="w-full bg-[#130d08] p-1.5 rounded border border-[#3b2716] text-[10px] font-mono text-stone-300">
-                        <span className="text-amber-400 font-bold">Damage:</span> {weaponFormula}{' '}
-                        {weaponBonus >= 0 ? `+ ${weaponBonus}` : weaponBonus} ({weaponStatBreakdown}) • Threat 20 (x2 Crit)
+                      <div className="text-[10px] font-mono text-amber-400/90 leading-tight">
+                        Roll: 1d20{totalWeaponAtkMod >= 0 ? `+${totalWeaponAtkMod}` : totalWeaponAtkMod} vs AC {monster.armorClass}
+                      </div>
+                      <div className="text-[9px] font-mono text-stone-400 truncate mt-0.5">
+                        Dmg: {weaponFormula}{weaponBonus >= 0 ? `+${weaponBonus}` : weaponBonus} • Crit: Nat 20
                       </div>
                     </button>
                   );
@@ -1774,65 +1765,48 @@ export const CombatView: React.FC<CombatViewProps> = ({
                   <button
                     id="btn-combat-defend"
                     onClick={handleHeroDefend}
-                    className="p-3.5 border-2 rounded-xl text-left transition-all flex flex-col justify-between shadow-md bg-gradient-to-r from-blue-950/70 via-stone-900 to-stone-900 border-blue-600 hover:border-blue-300 cursor-pointer transform active:scale-98 group"
+                    className="p-2 sm:p-2.5 border-2 rounded-xl text-left transition-all flex flex-col justify-between shadow-md min-h-[68px] sm:min-h-[74px] bg-gradient-to-br from-blue-950/80 via-stone-900 to-stone-900 border-blue-600/80 hover:border-blue-300 cursor-pointer transform active:scale-98 group"
                   >
-                    <div className="flex items-start gap-3 mb-2">
-                      <div className="p-2 rounded-lg shrink-0 bg-blue-500/20 text-blue-400 group-hover:scale-110 transition-transform">
-                        <Shield className="w-5 h-5" />
+                    <div className="flex items-center justify-between gap-1 leading-tight mb-0.5">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <Shield className="w-3.5 h-3.5 text-blue-400 shrink-0 group-hover:scale-110 transition-transform" />
+                        <span className="font-serif font-bold text-blue-200 text-xs truncate">
+                          {guardProfile.actionName}
+                        </span>
                       </div>
-                      <div className="flex-1">
-                        <div className="font-serif font-bold text-blue-200 text-sm flex items-center justify-between">
-                          <span>{guardProfile.actionName}</span>
-                          <span className="text-[10px] font-mono px-1.5 py-0.2 bg-blue-950 text-blue-300 rounded border border-blue-800">
-                            5 EP
-                          </span>
-                        </div>
-                        <div className="text-[11px] text-blue-400/90 font-mono mt-0.5">
-                          {guardProfile.actionSubtitle}
-                        </div>
-                      </div>
+                      <span className="text-[9px] font-mono px-1 py-0.2 bg-blue-950 text-blue-300 rounded border border-blue-800 font-bold shrink-0">
+                        5 EP
+                      </span>
                     </div>
-                    <div className="w-full bg-[#0d121a] p-1.5 rounded border border-[#1d2b40] text-[10px] font-mono text-stone-300 flex flex-col gap-0.5">
-                      <div>
-                        <span className="text-blue-300 font-bold">Defense:</span> +4 AC & Absorbs {3 + (hero.equipment.shield?.armorBonus || hero.equipment.offhand?.armorBonus || 0)} dmg (+3 Base{hero.equipment.shield?.armorBonus ? ` +${hero.equipment.shield.armorBonus} Shield` : ''})
-                      </div>
-                      <div>
-                        <span className="text-amber-400 font-bold">⚔️ Retaliation:</span> Counter {guardProfile.counterName} ({guardProfile.counterFormula} + {guardProfile.counterBonus >= 0 ? `+${guardProfile.counterBonus}` : guardProfile.counterBonus} {guardProfile.counterStatKey})
-                      </div>
+                    <div className="text-[10px] font-mono text-blue-400/90 leading-tight">
+                      +4 AC • Absorbs {3 + (hero.equipment.shield?.armorBonus || hero.equipment.offhand?.armorBonus || 0)} Dmg
+                    </div>
+                    <div className="text-[9px] font-mono text-stone-400 truncate mt-0.5">
+                      Riposte: {guardProfile.counterFormula}{guardProfile.counterBonus >= 0 ? `+${guardProfile.counterBonus}` : guardProfile.counterBonus}
                     </div>
                   </button>
                 ) : (
                   <button
                     id="btn-combat-catch-breath"
                     onClick={handleHeroCatchBreath}
-                    className="p-3.5 border-2 rounded-xl text-left transition-all flex flex-col justify-between shadow-md bg-gradient-to-r from-emerald-950/70 via-stone-900 to-stone-900 border-emerald-500 hover:border-emerald-300 cursor-pointer transform active:scale-98 group"
+                    className="p-2 sm:p-2.5 border-2 rounded-xl text-left transition-all flex flex-col justify-between shadow-md min-h-[68px] sm:min-h-[74px] bg-gradient-to-br from-emerald-950/80 via-stone-900 to-stone-900 border-emerald-600/80 hover:border-emerald-300 cursor-pointer transform active:scale-98 group"
                   >
-                    <div className="flex items-start gap-3 mb-2">
-                      <div className="p-2 rounded-lg shrink-0 bg-emerald-500/20 text-emerald-400 group-hover:scale-110 transition-transform">
-                        <Wind className="w-5 h-5" />
+                    <div className="flex items-center justify-between gap-1 leading-tight mb-0.5">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <Wind className="w-3.5 h-3.5 text-emerald-400 shrink-0 group-hover:scale-110 transition-transform" />
+                        <span className="font-serif font-bold text-emerald-200 text-xs truncate">
+                          Catch Breath
+                        </span>
                       </div>
-                      <div className="flex-1">
-                        <div className="font-serif font-bold text-emerald-200 text-sm flex items-center justify-between">
-                          <span>Catch Breath & Guard</span>
-                          <span className="text-[10px] font-mono px-1.5 py-0.2 bg-emerald-950 text-emerald-300 rounded border border-emerald-600 font-bold">
-                            +2 EP (0 Cost)
-                          </span>
-                        </div>
-                        <div className="text-[11px] text-emerald-400/90 font-mono mt-0.5">
-                          Low Energy Recovery • +4 AC Defense
-                        </div>
-                      </div>
+                      <span className="text-[9px] font-mono px-1 py-0.2 bg-emerald-950 text-emerald-300 rounded border border-emerald-600 font-bold shrink-0">
+                        +2 EP
+                      </span>
                     </div>
-                    <div className="w-full bg-[#0d1512] p-1.5 rounded border border-[#143527] text-[10px] font-mono text-stone-300 flex flex-col gap-0.5">
-                      <div>
-                        <span className="text-emerald-300 font-bold">Stamina Recovery:</span> Regains +2 Energy (Current: {hero.currentMana}/{hero.maxMana} EP)
-                      </div>
-                      <div>
-                        <span className="text-blue-300 font-bold">Defensive Guard:</span> +4 AC & Absorbs {3 + (hero.equipment.shield?.armorBonus || hero.equipment.offhand?.armorBonus || 0)} dmg
-                      </div>
-                      <div className="text-stone-400 italic">
-                        🛡️ Focuses entirely on recovery (deals 0 counter damage)
-                      </div>
+                    <div className="text-[10px] font-mono text-emerald-400/90 leading-tight">
+                      Regain +2 EP • +4 AC Defense
+                    </div>
+                    <div className="text-[9px] font-mono text-stone-400 truncate mt-0.5">
+                      Absorbs {3 + (hero.equipment.shield?.armorBonus || hero.equipment.offhand?.armorBonus || 0)} Dmg (No Attack)
                     </div>
                   </button>
                 )}
@@ -1848,30 +1822,28 @@ export const CombatView: React.FC<CombatViewProps> = ({
                       id={`btn-combat-skill-${skill.id}`}
                       onClick={() => handleHeroCastSkill(skill)}
                       disabled={!canAfford}
-                      className={`p-3.5 border-2 rounded-xl text-left transition-all flex flex-col justify-between shadow-md ${
+                      className={`p-2 sm:p-2.5 border-2 rounded-xl text-left transition-all flex flex-col justify-between shadow-md min-h-[68px] sm:min-h-[74px] ${
                         canAfford
-                          ? 'bg-gradient-to-r from-purple-950/70 via-stone-900 to-stone-900 border-purple-600 hover:border-purple-300 cursor-pointer transform active:scale-98'
+                          ? 'bg-gradient-to-br from-purple-950/80 via-stone-900 to-stone-900 border-purple-600/80 hover:border-purple-300 cursor-pointer transform active:scale-98 group'
                           : 'bg-stone-950/40 border-stone-900 opacity-50 cursor-not-allowed'
                       }`}
                     >
-                      <div className="flex items-start gap-3 mb-2">
-                        <div className="p-2 bg-purple-500/20 rounded-lg text-purple-400 shrink-0">
-                          <Wand2 className="w-5 h-5" />
+                      <div className="flex items-center justify-between gap-1 leading-tight mb-0.5">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <Wand2 className="w-3.5 h-3.5 text-purple-400 shrink-0 group-hover:scale-110 transition-transform" />
+                          <span className="font-serif font-bold text-purple-200 text-xs truncate">
+                            {skill.name}
+                          </span>
                         </div>
-                        <div className="flex-1">
-                          <div className="font-serif font-bold text-purple-200 text-sm flex items-center justify-between">
-                            <span>{skill.name}</span>
-                            <span className="text-[10px] font-mono px-1.5 py-0.2 bg-purple-950 text-purple-300 rounded border border-purple-800">
-                              {skill.manaCost} EP
-                            </span>
-                          </div>
-                          <div className="text-[11px] text-purple-300/90 font-mono mt-0.5">
-                            {detail.rollSubtitle}
-                          </div>
-                        </div>
+                        <span className="text-[9px] font-mono px-1 py-0.2 bg-purple-950 text-purple-300 rounded border border-purple-800 font-bold shrink-0">
+                          {skill.manaCost} EP
+                        </span>
                       </div>
-                      <div className="w-full bg-[#140e1c] p-1.5 rounded border border-[#3b284f] text-[10px] font-mono text-stone-300">
-                        <span className="text-purple-300 font-bold">{detail.boxLabel}:</span> {detail.boxText}
+                      <div className="text-[10px] font-mono text-purple-300/90 leading-tight truncate">
+                        {detail.rollSubtitle || detail.boxLabel}
+                      </div>
+                      <div className="text-[9px] font-mono text-stone-400 truncate mt-0.5">
+                        {detail.boxText}
                       </div>
                     </button>
                   );
@@ -1881,63 +1853,59 @@ export const CombatView: React.FC<CombatViewProps> = ({
                 <button
                   id="btn-combat-flee"
                   onClick={handleAttemptFlee}
-                  className="p-3.5 border-2 rounded-xl text-left transition-all flex flex-col justify-between shadow-md bg-gradient-to-r from-stone-900 via-stone-900 to-stone-900 border-stone-700 hover:border-amber-400 cursor-pointer transform active:scale-98 group"
+                  className="p-2 sm:p-2.5 border-2 rounded-xl text-left transition-all flex flex-col justify-between shadow-md min-h-[68px] sm:min-h-[74px] bg-gradient-to-br from-stone-900 via-stone-900 to-[#18120c] border-stone-600/80 hover:border-amber-400 cursor-pointer transform active:scale-98 group"
                 >
-                  <div className="flex items-start gap-3 mb-2">
-                    <div className="p-2 rounded-lg shrink-0 bg-stone-800 text-amber-300 group-hover:scale-110 transition-transform">
-                      <Footprints className="w-5 h-5" />
+                  <div className="flex items-center justify-between gap-1 leading-tight mb-0.5">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <Footprints className="w-3.5 h-3.5 text-amber-300 shrink-0 group-hover:scale-110 transition-transform" />
+                      <span className="font-serif font-bold text-stone-200 text-xs truncate">
+                        Tactical Escape
+                      </span>
                     </div>
-                    <div className="flex-1">
-                      <div className="font-serif font-bold text-stone-200 text-sm flex items-center justify-between">
-                        <span>Attempt Tactical Escape</span>
-                        <span className="text-[10px] font-mono px-1.5 py-0.2 bg-emerald-950/80 text-emerald-300 rounded border border-emerald-700">
-                          0 EP (Free)
-                        </span>
-                      </div>
-                      <div className="text-[11px] text-stone-400 font-mono mt-0.5">
-                        Roll: 1d20 {fleeMod >= 0 ? `+ ${fleeMod}` : fleeMod} ({fleeMod >= 0 ? `+${fleeMod}` : fleeMod} {fleeStatKey}) vs DC {10 + monster.level}
-                      </div>
-                    </div>
+                    <span className="text-[9px] font-mono px-1 py-0.2 bg-emerald-950/80 text-emerald-300 rounded border border-emerald-700 font-bold shrink-0">
+                      Free
+                    </span>
                   </div>
-                  <div className="w-full bg-[#14120f] p-1.5 rounded border border-[#38332a] text-[10px] font-mono text-stone-300">
-                    <span className="text-amber-300 font-bold">Flee Rule:</span> DC {10 + monster.level} (Base 10 + Lvl {monster.level} Monster) • 0 EP Cost • Retreats safely to previous chamber.
+                  <div className="text-[10px] font-mono text-stone-300 leading-tight">
+                    Roll: 1d20{fleeMod >= 0 ? `+${fleeMod}` : fleeMod} vs DC {10 + monster.level}
+                  </div>
+                  <div className="text-[9px] font-mono text-stone-400 truncate mt-0.5">
+                    Retreats to safe previous room
                   </div>
                 </button>
               </div>
 
               {/* Combat Consumables in Pack */}
               {combatConsumables.length > 0 && (
-                <div className="pt-3 border-t border-amber-900/40">
-                  <span className="text-xs font-serif font-bold text-amber-300 uppercase tracking-wider block mb-2">
-                    Adventurer's Pack • Combat Potions & Consumables:
+                <div className="pt-2 border-t border-amber-900/40 flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+                  <span className="text-[10px] font-mono font-bold text-amber-400/80 uppercase shrink-0">
+                    Potions:
                   </span>
-                  <div className="flex flex-wrap gap-2">
-                    {combatConsumables.map(({ inv, idx }) => (
-                      <button
-                        key={idx}
-                        id={`btn-combat-item-${idx}`}
-                        onClick={() => handleUseCombatItem(idx)}
-                        className="px-3 py-1.5 bg-[#2a1a10] hover:bg-[#3d2718] text-amber-200 border border-[#6b4728] rounded-lg text-xs font-serif flex items-center gap-1.5 cursor-pointer shadow transition-colors"
-                      >
-                        <Package className="w-3.5 h-3.5 text-amber-400" />
-                        <span>
-                          {inv.item.name} {inv.quantity > 1 ? `(x${inv.quantity})` : ''}
-                        </span>
-                        {inv.item.healHp && (
-                          <span className="text-[10px] font-mono text-emerald-400">(+{inv.item.healHp} HP)</span>
-                        )}
-                        {inv.item.healMana && (
-                          <span className="text-[10px] font-mono text-cyan-400">(+{inv.item.healMana} EP)</span>
-                        )}
-                        {inv.item.damageDice && (
-                          <span className="text-[10px] font-mono text-orange-400">({inv.item.damageDice} Fire Dmg)</span>
-                        )}
-                        {inv.item.id === 'scroll_of_teleport' && (
-                          <span className="text-[10px] font-mono text-purple-400">(Instant Escape)</span>
-                        )}
-                      </button>
-                    ))}
-                  </div>
+                  {combatConsumables.map(({ inv, idx }) => (
+                    <button
+                      key={idx}
+                      id={`btn-combat-item-${idx}`}
+                      onClick={() => handleUseCombatItem(idx)}
+                      className="px-2 py-0.5 bg-[#2a1a10] hover:bg-[#3d2718] text-amber-200 border border-[#6b4728] rounded text-[10px] font-serif flex items-center gap-1 cursor-pointer shadow shrink-0 transition-colors"
+                    >
+                      <Package className="w-3 h-3 text-amber-400" />
+                      <span className="truncate max-w-[100px]">
+                        {inv.item.name} {inv.quantity > 1 ? `(x${inv.quantity})` : ''}
+                      </span>
+                      {inv.item.healHp && (
+                        <span className="text-[9px] font-mono text-emerald-400 font-bold">+{inv.item.healHp} HP</span>
+                      )}
+                      {inv.item.healMana && (
+                        <span className="text-[9px] font-mono text-cyan-400 font-bold">+{inv.item.healMana} EP</span>
+                      )}
+                      {inv.item.damageDice && (
+                        <span className="text-[9px] font-mono text-orange-400 font-bold">({inv.item.damageDice} Dmg)</span>
+                      )}
+                      {inv.item.id === 'scroll_of_teleport' && (
+                        <span className="text-[9px] font-mono text-purple-400 font-bold">(Escape)</span>
+                      )}
+                    </button>
+                  ))}
                 </div>
               )}
             </div>
@@ -1960,96 +1928,39 @@ export const CombatView: React.FC<CombatViewProps> = ({
 
           {/* STEP 3: Hero Attack Result (SHOWS THE DICE RESULT BEFORE CLICKING TO CONTINUE WITH DAMAGE ROLL) */}
           {combatStep === 'HERO_ATTACK_RESULT' && pendingAttack && actionSummary && (
-            <div className="bg-[#18120c]/95 border-2 border-amber-500 rounded-xl p-6 shadow-2xl space-y-4 animate-fadeIn">
-              <div className="flex items-center justify-between border-b border-amber-900/60 pb-3">
-                <div className="flex items-center gap-2">
-                  <span
-                    className={`px-2.5 py-0.5 rounded text-xs font-mono font-bold uppercase ${
-                      pendingAttack.isHit
-                        ? 'bg-emerald-950 border border-emerald-600 text-emerald-300'
-                        : 'bg-red-950 border border-red-600 text-red-300'
-                    }`}
-                  >
-                    {pendingAttack.isHit ? 'Attack Check: HIT' : 'Attack Check: MISSED'}
-                  </span>
-                  <h3 className="text-xl font-serif font-bold text-amber-200">
-                    {actionSummary.title}
-                  </h3>
-                </div>
-                <div className="font-mono text-xs font-bold px-2.5 py-1 bg-stone-900 rounded border border-stone-700 text-amber-300">
-                  d20 Roll: [{pendingAttack.atkRoll.individualRolls[0]}]{' '}
-                  {pendingAttack.atkRoll.modifier >= 0
-                    ? `+ ${pendingAttack.atkRoll.modifier}`
-                    : pendingAttack.atkRoll.modifier}{' '}
-                  = {pendingAttack.atkRoll.total} vs AC {monster.armorClass}
-                </div>
+            <div className="bg-[#18120c]/95 border-2 border-amber-500 rounded-xl p-4 sm:p-5 shadow-2xl space-y-3 animate-fadeIn">
+              {/* Clean header with action title only (duplications removed) */}
+              <div className="border-b border-amber-900/60 pb-2">
+                <h3 className="text-lg sm:text-xl font-serif font-bold text-amber-200">
+                  {actionSummary.title}
+                </h3>
               </div>
 
-              {/* Visual Attack Dice Visualizer */}
+              {/* Visual Attack Dice Visualizer (clean header line + dice and total) */}
               <div className="py-1">
                 <DiceVisualizer
                   currentRoll={pendingAttack.atkRoll}
                   isRolling={false}
                   allowCustomDice={false}
+                  showFormulaBadge={false}
                   label={`Attack Roll (1d20 + ${pendingAttack.atkRoll.modifier}) vs AC ${monster.armorClass}`}
                 />
               </div>
 
-              {/* Visual Attack Dice Breakdown */}
-              <div className="p-4 bg-stone-900/80 rounded-lg border border-amber-900/60 space-y-2">
-                <div className="text-sm text-stone-200 leading-relaxed font-serif whitespace-pre-line">
-                  {actionSummary.details}
+              {/* Critical Banners (Only if Nat 20 or Nat 1) */}
+              {pendingAttack.isCrit && (
+                <div className="p-2.5 bg-gradient-to-r from-amber-950 via-yellow-950 to-amber-950 border border-yellow-500 rounded-lg text-yellow-200 text-xs font-serif flex items-center gap-2 shadow">
+                  <Sparkles className="w-4 h-4 text-yellow-400 animate-pulse shrink-0" />
+                  <span><strong>Natural 20 Critical Hit!</strong> 2x Damage Multiplier + 3 Brutal Strike applied.</span>
                 </div>
+              )}
 
-                {/* Explicit Critical Hit Banner */}
-                {pendingAttack.isCrit && (
-                  <div className="p-3 bg-gradient-to-r from-amber-950/90 via-yellow-950/90 to-amber-950/90 border-2 border-yellow-500 rounded-lg text-amber-200 text-xs font-serif space-y-1 shadow-lg">
-                    <div className="flex items-center gap-2 font-bold text-yellow-300">
-                      <Sparkles className="w-4 h-4 text-yellow-400 animate-pulse" />
-                      <span>CRITICAL HIT EFFECT ACTIVE (Natural 20)</span>
-                    </div>
-                    <p className="text-yellow-100/90">
-                      Your strike pierced armor cleanly! Upcoming damage roll will receive <strong>2x Double Damage Multiplier + 3 Brutal Strike Bonus</strong>!
-                    </p>
-                  </div>
-                )}
-
-                {/* Explicit Critical Fumble Warning Banner */}
-                {pendingAttack.isFumble && (
-                  <div className="p-3 bg-gradient-to-r from-red-950/90 via-amber-950/90 to-red-950/90 border-2 border-red-500 rounded-lg text-red-200 text-xs font-serif space-y-1 shadow-lg">
-                    <div className="flex items-center gap-2 font-bold text-red-300">
-                      <AlertTriangle className="w-4 h-4 text-red-400 animate-bounce" />
-                      <span>CRITICAL FUMBLE PENALTY (Natural 1 Rolled)</span>
-                    </div>
-                    <p className="text-red-100/90">
-                      You severely overextended and lost your footing! You are <strong>Off-Balance & Stumbled</strong>: you will <strong>FORFEIT your next combat turn</strong> while recovering your stance, allowing {monster.name} to strike freely! (A Critical Fumble cannot be rerolled with Fate)
-                    </p>
-                  </div>
-                )}
-
-                <div className="text-xs font-mono text-stone-400 bg-[#120d09] p-2.5 rounded border border-[#3b2718]">
-                  <div className="flex justify-between mb-1">
-                    <span>Target Armor Class (AC):</span>
-                    <span className="text-amber-300 font-bold">{monster.armorClass}</span>
-                  </div>
-                  <div className="flex justify-between mb-1">
-                    <span>Hero Total Attack Roll:</span>
-                    <span className={`font-bold ${pendingAttack.isHit ? 'text-emerald-400' : 'text-red-400'}`}>
-                      {pendingAttack.atkRoll.total} ({pendingAttack.isHit ? '≥ Target AC' : '< Target AC'})
-                    </span>
-                  </div>
-                  {pendingAttack.isHit && (
-                    <div className="flex justify-between pt-1 border-t border-stone-800 text-amber-300">
-                      <span>{pendingAttack.type === 'spell' ? 'Skill / Spell Damage Dice to Roll:' : 'Weapon Damage Dice to Roll:'}</span>
-                      <span className="font-bold">
-                        {pendingAttack.damageFormula}{' '}
-                        {pendingAttack.damageBonus >= 0 ? `+ ${pendingAttack.damageBonus}` : pendingAttack.damageBonus}
-                        {pendingAttack.isCrit ? ' [×2 + 3 Brutal Crit]' : ''}
-                      </span>
-                    </div>
-                  )}
+              {pendingAttack.isFumble && (
+                <div className="p-2.5 bg-gradient-to-r from-red-950 via-amber-950 to-red-950 border border-red-500 rounded-lg text-red-200 text-xs font-serif flex items-center gap-2 shadow">
+                  <AlertTriangle className="w-4 h-4 text-red-400 animate-bounce shrink-0" />
+                  <span><strong>Natural 1 Critical Fumble!</strong> Stumbled & forfeit next turn.</span>
                 </div>
-              </div>
+              )}
 
               {/* Fate Reroll on Failed Attack (Blocked on Critical Fumbles) */}
               {!pendingAttack.isHit && (
@@ -2144,56 +2055,54 @@ export const CombatView: React.FC<CombatViewProps> = ({
 
           {/* STEP 5: Damage Roll Result & Next Step */}
           {combatStep === 'HERO_DAMAGE_RESULT' && actionSummary && (
-            <div className="bg-[#18120c]/95 border-2 border-emerald-500 rounded-xl p-6 shadow-2xl space-y-4 animate-fadeIn">
-              <div className="flex items-center justify-between border-b border-amber-900/60 pb-3">
+            <div className="bg-[#18120c]/95 border-2 border-emerald-500 rounded-xl p-4 sm:p-5 shadow-2xl space-y-3 animate-fadeIn">
+              <div className="flex items-center justify-between border-b border-amber-900/60 pb-2.5">
                 <div className="flex items-center gap-2">
                   <span className="px-2.5 py-0.5 rounded text-xs font-mono font-bold uppercase bg-emerald-950 border border-emerald-600 text-emerald-300">
                     Damage Dealt
                   </span>
-                  <h3 className="text-xl font-serif font-bold text-amber-200">
+                  <h3 className="text-lg sm:text-xl font-serif font-bold text-amber-200">
                     {actionSummary.title}
                   </h3>
                 </div>
                 {actionSummary.damage !== undefined && (
-                  <span className="font-mono text-sm font-bold px-3 py-1 bg-red-950 rounded border border-red-700 text-red-300">
+                  <span className="font-mono text-xs sm:text-sm font-bold px-2.5 py-0.5 bg-red-950 rounded border border-red-700 text-red-300">
                     -{actionSummary.damage} HP
                   </span>
                 )}
               </div>
 
-              {/* Visual Damage Dice Visualizer */}
-              {damageRoll && (
-                <div className="py-1">
-                  <DiceVisualizer
-                    currentRoll={damageRoll}
-                    isRolling={false}
-                    allowCustomDice={false}
-                    label={`Damage Roll: ${pendingAttack?.damageFormula || ''} (${actionSummary.damage} Damage Dealt)`}
-                  />
+              {/* Visual Damage Dice Visualizer (includes base dice + modifier, e.g. 1d8 + 4) */}
+              {damageRoll && (() => {
+                const dmgMod = damageRoll.modifier ?? pendingAttack?.damageBonus ?? 0;
+                const dmgModStr = dmgMod !== 0 ? (dmgMod > 0 ? ` + ${dmgMod}` : ` - ${Math.abs(dmgMod)}`) : '';
+                const baseDiceStr = pendingAttack?.damageFormula || (damageRoll ? `${damageRoll.individualRolls.length}d${damageRoll.diceSides}` : '1d8');
+
+                return (
+                  <div className="py-1">
+                    <DiceVisualizer
+                      currentRoll={damageRoll}
+                      isRolling={false}
+                      allowCustomDice={false}
+                      showFormulaBadge={false}
+                      label={`Damage Roll: ${baseDiceStr}${dmgModStr} (${actionSummary.damage} Damage Dealt)`}
+                    />
+                  </div>
+                );
+              })()}
+
+              {/* Explicit Critical Hit Damage Banner (compact, only when Crit) */}
+              {actionSummary.isCrit && (
+                <div className="p-2.5 bg-gradient-to-r from-amber-950 via-yellow-950 to-amber-950 border border-yellow-500 rounded-lg text-amber-200 text-xs font-serif flex items-center justify-between shadow">
+                  <span className="flex items-center gap-1.5 text-yellow-300 font-bold">
+                    <Sparkles className="w-4 h-4 text-yellow-400 animate-pulse shrink-0" />
+                    Critical Hit Multiplier Applied!
+                  </span>
+                  <span className="px-2 py-0.5 bg-yellow-950 border border-yellow-600 rounded text-yellow-200 font-mono text-[10px]">
+                    2x Multiplier + 3 Brutal
+                  </span>
                 </div>
               )}
-
-              <div className="p-4 bg-stone-900/80 rounded-lg border border-amber-900/60 text-sm text-stone-200 leading-relaxed font-serif space-y-2">
-                <div className="whitespace-pre-line">{actionSummary.details}</div>
-
-                {/* Explicit Critical Hit Damage Breakdown */}
-                {actionSummary.isCrit && (
-                  <div className="p-3 bg-gradient-to-r from-amber-950/90 via-yellow-950/80 to-amber-950/90 border-2 border-yellow-500/80 rounded-lg text-amber-200 text-xs font-serif space-y-1 shadow-md">
-                    <div className="flex items-center justify-between text-yellow-300 font-bold">
-                      <span className="flex items-center gap-1.5">
-                        <Sparkles className="w-4 h-4 text-yellow-400 animate-spin" />
-                        CRITICAL DAMAGE MULTIPLIER APPLIED
-                      </span>
-                      <span className="px-2 py-0.5 bg-yellow-950 border border-yellow-600 rounded text-yellow-200 font-mono text-[11px]">
-                        2x Multiplier + 3 Brutal Strike
-                      </span>
-                    </div>
-                    <p className="text-yellow-100/90 leading-relaxed font-sans">
-                      Base damage dice doubled and amplified by devastating kinetic momentum: <strong>[Base Roll × 2 + 3 Brutal Strike Bonus] = Total {actionSummary.damage} Damage!</strong>
-                    </p>
-                  </div>
-                )}
-              </div>
 
               {/* Progress Controls */}
               <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
