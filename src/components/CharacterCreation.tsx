@@ -540,11 +540,8 @@ export const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacte
     }
   };
 
-  // Calculate live total sum
-  const currentTotalSum = STAT_ORDER.reduce(
-    (sum, s) => sum + (rolledStatBreakdowns[s.key]?.total || 0),
-    0
-  );
+  const highestStatScore = Math.max(...STAT_ORDER.map(({ key }) => stats[key]));
+  const lowestStatScore = Math.min(...STAT_ORDER.map(({ key }) => stats[key]));
 
   const rolledCount = STAT_ORDER.filter((s) => rolledStatBreakdowns[s.key] !== undefined).length;
   const allRolled = rolledCount === STAT_ORDER.length;
@@ -703,57 +700,50 @@ export const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacte
         {currentStep === 'DESTINY_REVEAL' && destinyDiagnosis && (
           <div className="w-full max-w-3xl bg-[#18120c]/95 border-2 border-amber-600 rounded-xl p-4 sm:p-6 shadow-2xl backdrop-blur-md text-amber-100 space-y-5 animate-fadeIn">
             {/* Header Banner */}
-            <div className="border-b border-amber-900/60 pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div>
+            <div className="border-b border-amber-900/60 pb-3 flex items-start justify-between gap-2 sm:gap-4">
+              <div className="min-w-0 flex-1">
                 <span className="px-2.5 py-0.5 rounded text-[11px] font-mono font-bold uppercase bg-amber-950 border border-amber-600 text-amber-300">
                   {destinyDiagnosis.verdictTag}
                 </span>
-                <h3 className="text-2xl sm:text-3xl font-serif font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-amber-400 to-amber-200 mt-1">
+                <h3 className="text-xl sm:text-3xl font-serif font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-amber-400 to-amber-200 mt-1 leading-tight">
                   {destinyDiagnosis.callingTitle}
                 </h3>
               </div>
-              <div className="p-3 bg-amber-500/20 border border-amber-500 rounded-2xl text-amber-400 self-start sm:self-auto">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 shrink-0 grid place-items-center bg-amber-500/20 border border-amber-500 rounded-xl text-amber-400">
                 {getClassIcon(selectedClass.icon)}
               </div>
             </div>
 
             {/* Narrative Reasoning Box */}
             <div className="p-4 bg-stone-950/80 rounded-xl border border-amber-900/70 space-y-2">
-              <div className="flex items-center gap-2 text-xs font-mono text-amber-400 font-bold uppercase">
-                <Sparkles className="w-4 h-4 text-amber-400" />
-                <span>Oracle Verdict & Destiny Diagnosis:</span>
-              </div>
               <p className="text-sm font-serif text-stone-200 leading-relaxed italic">
                 "{destinyDiagnosis.reason}"
               </p>
-              <div className="flex flex-wrap gap-1.5 pt-1">
-                {destinyDiagnosis.highlightStats.map((h, i) => (
-                  <span
-                    key={i}
-                    className="px-2 py-0.5 rounded bg-[#2b190f] border border-amber-700/60 text-amber-300 font-mono text-xs"
-                  >
-                    ✦ {h}
-                  </span>
-                ))}
-              </div>
             </div>
 
             {/* Rolled Attributes Summary */}
             <div>
-              <div className="text-xs font-mono text-stone-400 uppercase mb-1.5">
-                YOUR FATED ABILITY SCORES (TOTAL SUM: {destinyDiagnosis.totalScore})
-              </div>
+              <div className="text-xs font-mono text-stone-400 uppercase mb-1.5">YOUR FATED ABILITY SCORES</div>
               <div className="grid grid-cols-5 gap-2 text-center font-mono">
                 {STAT_ORDER.map(({ key }) => {
                   const val = stats[key];
                   const mod = getStatModifier(val);
+                  const isHighest = highestStatScore !== lowestStatScore && val === highestStatScore;
+                  const isLowest = highestStatScore !== lowestStatScore && val === lowestStatScore;
                   return (
                     <div
                       key={key}
-                      className="p-2 bg-stone-950/90 rounded-lg border border-amber-950"
+                      aria-label={`${key}: ${val}${isHighest ? ', highest stat' : isLowest ? ', lowest stat' : ''}`}
+                      className={`p-2 rounded-lg border ${
+                        isHighest
+                          ? 'bg-emerald-950/70 border-emerald-600'
+                          : isLowest
+                          ? 'bg-red-950/70 border-red-700'
+                          : 'bg-stone-950/90 border-amber-950'
+                      }`}
                     >
                       <div className="text-[10px] text-stone-400">{key}</div>
-                      <div className="text-base font-black text-cyan-300">{val}</div>
+                      <div className={`text-base font-black ${isHighest ? 'text-emerald-300' : isLowest ? 'text-red-300' : 'text-cyan-300'}`}>{val}</div>
                       <div className="text-[10px] font-bold text-amber-400">
                         {mod >= 0 ? `+${mod}` : mod}
                       </div>
@@ -840,8 +830,8 @@ export const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacte
         {/* ==================================================== */}
         {currentStep === 'FINALIZE' && (
           <div className="w-full max-w-3xl bg-[#18120c]/95 border-2 border-amber-800/60 rounded-xl p-6 shadow-2xl backdrop-blur-md text-amber-100 space-y-6 animate-fadeIn">
-            <div className="border-b border-amber-900/50 pb-4 flex items-center justify-between">
-              <div>
+            <div className="border-b border-amber-900/50 pb-4 flex items-center justify-between gap-3">
+              <div className="min-w-0">
                 <span className="px-2.5 py-0.5 rounded bg-emerald-950/80 border border-emerald-700/60 text-emerald-400 font-mono text-xs uppercase">
                   Character Sheet Ready
                 </span>
@@ -849,7 +839,7 @@ export const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacte
                   Name Your Adventurer
                 </h3>
               </div>
-              <div className="p-2.5 rounded-xl bg-amber-500/20 border border-amber-500 text-amber-400">
+              <div className="shrink-0 p-2.5 rounded-xl bg-amber-500/20 border border-amber-500 text-amber-400">
                 {getClassIcon(selectedClass.icon)}
               </div>
             </div>
@@ -908,15 +898,31 @@ export const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacte
               <div>
                 <div className="text-[11px] font-mono text-stone-400 uppercase mb-1.5">ROLLED ABILITY SCORES</div>
                 <div className="grid grid-cols-5 gap-1.5 text-center font-mono">
-                  {STAT_ORDER.map(({ key }) => (
-                    <div key={key} className="p-1.5 bg-stone-950 rounded-lg border border-stone-800">
-                      <div className="text-[10px] text-stone-400">{key}</div>
-                      <div className="text-sm font-bold text-amber-300">{stats[key]}</div>
-                      <div className="text-[9px] text-stone-500">
-                        {getStatModifier(stats[key]) >= 0 ? `+${getStatModifier(stats[key])}` : getStatModifier(stats[key])}
+                  {STAT_ORDER.map(({ key }) => {
+                    const value = stats[key];
+                    const isHighest = highestStatScore !== lowestStatScore && value === highestStatScore;
+                    const isLowest = highestStatScore !== lowestStatScore && value === lowestStatScore;
+                    const modifier = getStatModifier(value);
+                    return (
+                      <div
+                        key={key}
+                        aria-label={`${key}: ${value}${isHighest ? ', highest stat' : isLowest ? ', lowest stat' : ''}`}
+                        className={`p-1.5 rounded-lg border ${
+                          isHighest
+                            ? 'bg-emerald-950/70 border-emerald-600'
+                            : isLowest
+                            ? 'bg-red-950/70 border-red-700'
+                            : 'bg-stone-950 border-stone-800'
+                        }`}
+                      >
+                        <div className="text-[10px] text-stone-400">{key}</div>
+                        <div className={`text-sm font-bold ${isHighest ? 'text-emerald-300' : isLowest ? 'text-red-300' : 'text-amber-300'}`}>{value}</div>
+                        <div className="text-[9px] text-stone-500">
+                          {modifier >= 0 ? `+${modifier}` : modifier}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
 
                 <div className="mt-3">

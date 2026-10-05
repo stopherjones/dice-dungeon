@@ -3,10 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useEffect, useState, useRef } from 'react';
-import {
-  ChevronLeft,
-} from 'lucide-react';
+import React, { useCallback, useEffect, useState, useRef } from 'react';
+import { ArrowRight, ChevronLeft } from 'lucide-react';
 import {
   CombatState,
   DungeonFloor,
@@ -16,6 +14,7 @@ import {
   Monster,
 } from '../types/game';
 import { RoomView } from './RoomView';
+import type { RoomPrimaryAction } from './RoomView';
 import { CombatView } from './CombatView';
 import { getStatModifier } from '../utils/dice';
 
@@ -26,7 +25,6 @@ interface RoomModalProps {
   room: DungeonRoom;
   hero: HeroCharacter;
   combat: CombatState | null;
-  previousRoomId?: string;
   onUpdateHero: (hero: HeroCharacter) => void;
   onUpdateRoom: (room: DungeonRoom) => void;
   onEnterCombat: (room: DungeonRoom) => void;
@@ -34,7 +32,6 @@ interface RoomModalProps {
   onCombatVictory: (monster: Monster, reward: { xp: number; gold: number; items: GameItem[] }) => void;
   onCombatFlee: () => void;
   onOpenMerchant: () => void;
-  onNavigateToRoom: (targetRoomId: string) => void;
   onUseTorch?: (targetRoomId: string) => void;
   onSmashWall: (wallId: string, item: GameItem) => void;
   onPhaseThroughWall: (targetRoomId: string, item?: GameItem) => void;
@@ -49,7 +46,6 @@ export const RoomModal: React.FC<RoomModalProps> = ({
   room,
   hero,
   combat,
-  previousRoomId,
   onUpdateHero,
   onUpdateRoom,
   onEnterCombat,
@@ -57,7 +53,6 @@ export const RoomModal: React.FC<RoomModalProps> = ({
   onCombatVictory,
   onCombatFlee,
   onOpenMerchant,
-  onNavigateToRoom,
   onUseTorch,
   onSmashWall,
   onPhaseThroughWall,
@@ -77,6 +72,13 @@ export const RoomModal: React.FC<RoomModalProps> = ({
 
   const [isScrolled, setIsScrolled] = useState(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const primaryActionRef = useRef<RoomPrimaryAction | null>(null);
+  const [primaryActionLabel, setPrimaryActionLabel] = useState<string | null>(null);
+  const handlePrimaryActionChange = useCallback((action: RoomPrimaryAction | null) => {
+    primaryActionRef.current = action;
+    const label = action?.label ?? null;
+    setPrimaryActionLabel((current) => (current === label ? current : label));
+  }, []);
 
   const handleScroll = () => {
     if (scrollContainerRef.current) {
@@ -343,18 +345,17 @@ export const RoomModal: React.FC<RoomModalProps> = ({
               floor={floor}
               room={room}
               hero={hero}
-              previousRoomId={previousRoomId}
               onUpdateHero={onUpdateHero}
               onUpdateRoom={onUpdateRoom}
               onEnterCombat={onEnterCombat}
               onOpenMerchant={onOpenMerchant}
-              onNavigateToRoom={onNavigateToRoom}
               onUseTorch={onUseTorch}
               onSmashWall={onSmashWall}
               onPhaseThroughWall={onPhaseThroughWall}
               onDescendFloor={onDescendFloor}
               onOpenInventory={onOpenInventory}
               onClose={onClose}
+              onPrimaryActionChange={handlePrimaryActionChange}
             />
           )}
         </div>
@@ -362,15 +363,32 @@ export const RoomModal: React.FC<RoomModalProps> = ({
         {/* Sticky Tabletop Footer matching other game views */}
         {!combat ? (
           <div className="shrink-0 z-40 w-full bg-[#160f09]/98 border-t-2 border-amber-800/80 shadow-[0_-12px_28px_rgba(0,0,0,0.95)] backdrop-blur-md px-3 sm:px-4 py-2 sm:py-2.5">
-            <div className="max-w-xl mx-auto flex flex-col gap-1.5">
-              <button
-                id="btn-footer-return-map-main"
-                onClick={onClose}
-                className="w-full py-2.5 px-4 bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 hover:from-yellow-300 text-stone-950 font-serif font-black rounded-lg shadow-xl text-sm sm:text-base cursor-pointer transition-all transform hover:scale-[1.01] active:scale-[0.99] border-2 border-yellow-200 flex items-center justify-center gap-2"
-              >
-                <ChevronLeft className="w-5 h-5 text-stone-950" />
-                <span>Return to Map</span>
-              </button>
+            <div className="max-w-2xl mx-auto flex flex-col gap-1.5">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <button
+                  id="btn-footer-return-map-main"
+                  onClick={onClose}
+                  className="shrink-0 py-2 px-2.5 sm:px-3 bg-[#241a12] hover:bg-[#382618] text-amber-200 border border-[#6b4c2b] rounded-md text-xs font-serif font-bold cursor-pointer transition-colors flex items-center justify-center gap-1"
+                >
+                  <ChevronLeft className="w-4 h-4 text-amber-400" />
+                  <span>Return to Map</span>
+                </button>
+                {primaryActionLabel && (
+                  <button
+                    id="btn-footer-room-primary"
+                    disabled={Boolean(primaryActionRef.current?.disabled)}
+                    onClick={() => primaryActionRef.current?.onClick()}
+                    className={`flex-1 min-w-0 py-2.5 px-3 sm:px-4 font-serif font-black rounded-md shadow-lg text-sm transition-all border flex items-center justify-center gap-2 ${
+                      primaryActionRef.current?.disabled
+                        ? 'bg-stone-700 text-stone-400 border-stone-600 cursor-not-allowed'
+                        : 'bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 hover:from-yellow-300 hover:to-amber-400 text-stone-950 border-yellow-200 cursor-pointer active:translate-y-px'
+                    }`}
+                  >
+                    <span className="text-center leading-tight">{primaryActionLabel}</span>
+                    <ArrowRight className="w-4 h-4 shrink-0" />
+                  </button>
+                )}
+              </div>
               <div className="flex items-center justify-center gap-2 text-[11px] text-stone-400 font-mono py-0.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block mr-1" />
                 <span>

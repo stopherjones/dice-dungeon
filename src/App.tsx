@@ -1095,7 +1095,6 @@ export default function App() {
           room={currentRoom}
           hero={gameState.hero}
           combat={gameState.combat}
-          previousRoomId={previousRoomId}
           onUpdateHero={(updatedHero) =>
             setGameState((prev) => ({ ...prev, hero: updatedHero }))
           }
@@ -1121,7 +1120,6 @@ export default function App() {
           onCombatVictory={handleCombatVictory}
           onCombatFlee={handleCombatFlee}
           onOpenMerchant={() => setShowMerchant(true)}
-          onNavigateToRoom={handleNavigateToRoom}
           onUseTorch={handleUseTorch}
           onSmashWall={handleSmashWall}
           onPhaseThroughWall={handlePhaseThroughWall}

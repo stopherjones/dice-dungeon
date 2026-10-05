@@ -1,6 +1,6 @@
-# Parchment & Peril
+# Dice Dungeon
 
-An old-school solo dungeon crawler built with React and Vite.
+An old-school dice-based dungeon crawler.
 
 ## Run Locally
 

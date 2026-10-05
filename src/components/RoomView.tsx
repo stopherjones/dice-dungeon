@@ -16,7 +16,6 @@ import {
   Key,
   Shield,
   ShieldAlert,
-  Dices,
   Flame,
   Sparkles,
   Heart,
@@ -34,44 +33,49 @@ import { rollDice, getStatModifier, RollResult } from '../utils/dice';
 import { sounds } from '../utils/audio';
 import { addItemToHero, removeItemFromHero, syncHeroSupplies } from '../utils/inventory';
 
+export interface RoomPrimaryAction {
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+}
+
 interface RoomViewProps {
   floor: DungeonFloor;
   room: DungeonRoom;
   hero: HeroCharacter;
-  previousRoomId?: string;
   onUpdateHero: (hero: HeroCharacter) => void;
   onUpdateRoom: (room: DungeonRoom) => void;
   onEnterCombat: (room: DungeonRoom) => void;
   onOpenMerchant: () => void;
-  onNavigateToRoom: (targetRoomId: string) => void;
   onUseTorch?: (targetRoomId: string) => void;
   onSmashWall: (wallId: string, item: GameItem) => void;
   onPhaseThroughWall: (targetRoomId: string, item?: GameItem) => void;
   onDescendFloor: () => void;
   onOpenInventory?: () => void;
   onClose?: () => void;
+  onPrimaryActionChange: (action: RoomPrimaryAction | null) => void;
 }
 
 export const RoomView: React.FC<RoomViewProps> = ({
   floor,
   room,
   hero,
-  previousRoomId,
   onUpdateHero,
   onUpdateRoom,
   onEnterCombat,
   onOpenMerchant,
-  onNavigateToRoom,
   onUseTorch,
   onSmashWall,
   onPhaseThroughWall,
   onDescendFloor,
   onOpenInventory,
   onClose,
+  onPrimaryActionChange,
 }) => {
   const [currentRoll, setCurrentRoll] = useState<RollResult | null>(null);
   const [isRolling, setIsRolling] = useState(false);
   const [eventMessage, setEventMessage] = useState<string | null>(null);
+  const [selectedTrapStat, setSelectedTrapStat] = useState<StatType | null>(null);
   const [showLootModal, setShowLootModal] = useState(false);
   const [lootSourceTitle, setLootSourceTitle] = useState('Iron Vault Chest');
   const [lootSourceDesc, setLootSourceDesc] = useState('Opening the reinforced dungeon chest...');
@@ -83,6 +87,10 @@ export const RoomView: React.FC<RoomViewProps> = ({
   const [challengeConfig, setChallengeConfig] = useState<ActionChallengeConfig | null>(null);
 
   const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setSelectedTrapStat(null);
+  }, [room.id]);
 
   // Scroll to top of modal container whenever room events, traps, chests, or rolls occur
   useEffect(() => {
@@ -364,6 +372,34 @@ export const RoomView: React.FC<RoomViewProps> = ({
     setShowChallengeModal(true);
   };
 
+  const primaryAction = room.monster && room.monster.hp > 0
+    ? { label: 'Draw Weapon & Enter Combat', onClick: () => onEnterCombat(room) }
+    : room.trap && !room.trap.disarmed
+    ? {
+        label: selectedTrapStat ? 'Attempt to Deactivate Trap' : 'Select a Trap Approach',
+        onClick: () => selectedTrapStat && handleDisarmTrap(selectedTrapStat),
+        disabled: !selectedTrapStat,
+      }
+    : room.hasStairs && (!room.monster || room.monster.hp <= 0)
+    ? { label: floor.floorNumber === 3 ? 'Claim Victory' : `Descend to Floor ${floor.floorNumber + 1}`, onClick: onDescendFloor }
+    : room.chest && !room.chest.isOpened && !room.chest.isFailed && !room.chest.isJammed
+    ? room.chest.isLocked
+      ? { label: 'Pick Chest Lock', onClick: handlePickChestLock }
+      : { label: 'Open Chest for Treasure', onClick: handleOpenUnlockedChest }
+    : room.type === 'MERCHANT'
+    ? { label: 'Trade with Olaf', onClick: onOpenMerchant }
+    : room.shrine && !room.shrine.used
+    ? { label: 'Pray for Divine Blessing', onClick: handlePrayAtShrine }
+    : room.secret && !room.secret.discovered && !room.secret.isFailed
+    ? { label: 'Search for Hidden Treasure', onClick: handleSearchSecret }
+    : room.type === 'CAMPFIRE' && onOpenInventory
+    ? { label: 'Open Backpack', onClick: onOpenInventory }
+    : null;
+
+  useEffect(() => {
+    onPrimaryActionChange(primaryAction);
+  }, [primaryAction?.label, primaryAction?.onClick, primaryAction?.disabled, onPrimaryActionChange]);
+
   return (
     <div ref={containerRef} id="room-view-container" className="max-w-4xl mx-auto space-y-4">
       {/* If Trap Chamber: Render Single Merged Unified Trap Card */}
@@ -428,7 +464,7 @@ export const RoomView: React.FC<RoomViewProps> = ({
                 <div className="p-2.5 bg-red-950/80 border border-red-600/70 rounded-lg text-xs text-red-200 font-serif flex items-start gap-2 shadow-sm">
                   <AlertTriangle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
                   <div>
-                    <strong>Trap Sprung & Still Active:</strong> The hazard triggered on a previous attempt and remains armed! You must disarm it to proceed past it, or retreat.
+                    <strong>Trap Sprung & Still Active:</strong> The hazard triggered on a previous attempt and remains armed! You must disarm it before proceeding.
                     {eventMessage && <div className="mt-1 text-red-300 font-bold">{eventMessage}</div>}
                   </div>
                 </div>
@@ -436,7 +472,7 @@ export const RoomView: React.FC<RoomViewProps> = ({
 
               <div className="text-[11px] font-serif text-amber-200/90 italic">
                 {room.trap.triggered
-                  ? 'Attempt to deactivate the active trap again:'
+                  ? 'Choose your approach to deactivate the active trap:'
                   : 'Choose your skill approach to deactivate the trap:'}
               </div>
 
@@ -446,8 +482,9 @@ export const RoomView: React.FC<RoomViewProps> = ({
                 <button
                   id="btn-trap-dex"
                   disabled={isRolling}
-                  onClick={() => handleDisarmTrap('DEX')}
-                  className="p-2 bg-[#332213] hover:bg-[#48301c] text-amber-200 border border-[#7a5836] rounded text-xs font-serif font-bold flex items-center justify-between cursor-pointer transition-colors disabled:opacity-50"
+                  aria-pressed={selectedTrapStat === 'DEX'}
+                  onClick={() => setSelectedTrapStat('DEX')}
+                  className={`p-2 text-amber-200 border rounded text-xs font-serif font-bold flex items-center justify-between cursor-pointer transition-colors disabled:opacity-50 ${selectedTrapStat === 'DEX' ? 'bg-amber-900/60 border-amber-300 ring-1 ring-amber-400' : 'bg-[#332213] hover:bg-[#48301c] border-[#7a5836]'}`}
                 >
                   <div className="flex items-center gap-1.5">
                     <Zap className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
@@ -464,8 +501,9 @@ export const RoomView: React.FC<RoomViewProps> = ({
                 <button
                   id="btn-trap-int"
                   disabled={isRolling}
-                  onClick={() => handleDisarmTrap('INT')}
-                  className="p-2 bg-[#332213] hover:bg-[#48301c] text-amber-200 border border-[#7a5836] rounded text-xs font-serif font-bold flex items-center justify-between cursor-pointer transition-colors disabled:opacity-50"
+                  aria-pressed={selectedTrapStat === 'INT'}
+                  onClick={() => setSelectedTrapStat('INT')}
+                  className={`p-2 text-amber-200 border rounded text-xs font-serif font-bold flex items-center justify-between cursor-pointer transition-colors disabled:opacity-50 ${selectedTrapStat === 'INT' ? 'bg-amber-900/60 border-amber-300 ring-1 ring-amber-400' : 'bg-[#332213] hover:bg-[#48301c] border-[#7a5836]'}`}
                 >
                   <div className="flex items-center gap-1.5">
                     <Wand2 className="w-3.5 h-3.5 text-purple-400 shrink-0" />
@@ -482,8 +520,9 @@ export const RoomView: React.FC<RoomViewProps> = ({
                 <button
                   id="btn-trap-str"
                   disabled={isRolling}
-                  onClick={() => handleDisarmTrap('STR')}
-                  className="p-2 bg-[#332213] hover:bg-[#48301c] text-amber-200 border border-[#7a5836] rounded text-xs font-serif font-bold flex items-center justify-between cursor-pointer transition-colors disabled:opacity-50"
+                  aria-pressed={selectedTrapStat === 'STR'}
+                  onClick={() => setSelectedTrapStat('STR')}
+                  className={`p-2 text-amber-200 border rounded text-xs font-serif font-bold flex items-center justify-between cursor-pointer transition-colors disabled:opacity-50 ${selectedTrapStat === 'STR' ? 'bg-amber-900/60 border-amber-300 ring-1 ring-amber-400' : 'bg-[#332213] hover:bg-[#48301c] border-[#7a5836]'}`}
                 >
                   <div className="flex items-center gap-1.5">
                     <Hammer className="w-3.5 h-3.5 text-orange-400 shrink-0" />
@@ -500,8 +539,9 @@ export const RoomView: React.FC<RoomViewProps> = ({
                 <button
                   id="btn-trap-lck"
                   disabled={isRolling}
-                  onClick={() => handleDisarmTrap('LCK')}
-                  className="p-2 bg-[#332213] hover:bg-[#48301c] text-amber-200 border border-[#7a5836] rounded text-xs font-serif font-bold flex items-center justify-between cursor-pointer transition-colors disabled:opacity-50"
+                  aria-pressed={selectedTrapStat === 'LCK'}
+                  onClick={() => setSelectedTrapStat('LCK')}
+                  className={`p-2 text-amber-200 border rounded text-xs font-serif font-bold flex items-center justify-between cursor-pointer transition-colors disabled:opacity-50 ${selectedTrapStat === 'LCK' ? 'bg-amber-900/60 border-amber-300 ring-1 ring-amber-400' : 'bg-[#332213] hover:bg-[#48301c] border-[#7a5836]'}`}
                 >
                   <div className="flex items-center gap-1.5">
                     <Sparkles className="w-3.5 h-3.5 text-yellow-400 shrink-0" />
@@ -515,22 +555,6 @@ export const RoomView: React.FC<RoomViewProps> = ({
                 </button>
               </div>
 
-              {/* Retreat option if entered from another room */}
-              {previousRoomId && previousRoomId !== room.id && (
-                <div className="pt-2 border-t border-[#4d3723] flex items-center justify-between">
-                  <span className="text-[11px] text-stone-400 font-serif italic">
-                    Can't bypass? You can retreat safely:
-                  </span>
-                  <button
-                    id="btn-retreat-from-trap"
-                    onClick={() => onNavigateToRoom(previousRoomId)}
-                    className="px-3 py-1.5 bg-[#2a1c12] hover:bg-[#3d291b] text-amber-200 border border-[#6b4724] rounded text-xs font-serif font-bold flex items-center gap-1.5 cursor-pointer shadow-sm transition-colors"
-                  >
-                    <Footprints className="w-3.5 h-3.5 text-amber-400" />
-                    <span>Retreat the way you came ➔</span>
-                  </button>
-                </div>
-              )}
             </div>
           ) : (
             /* Successful Roll: Green Status Format Text */
@@ -610,14 +634,6 @@ export const RoomView: React.FC<RoomViewProps> = ({
                 </div>
               )}
 
-              <button
-                id="btn-engage-combat"
-                onClick={() => onEnterCombat(room)}
-                className="w-full py-2.5 bg-gradient-to-b from-[#8f2b1d] to-[#591910] hover:from-[#a63423] hover:to-[#6d2015] text-amber-100 font-serif font-bold text-sm rounded border border-red-500 shadow-md active:translate-y-0.5 transition-all flex items-center justify-center gap-2 cursor-pointer"
-              >
-                <Skull className="w-4 h-4 text-red-300" />
-                <span>DRAW WEAPON & ENTER COMBAT</span>
-              </button>
             </div>
           )}
 
@@ -677,13 +693,7 @@ export const RoomView: React.FC<RoomViewProps> = ({
                         </button>
                       </div>
                     ) : (
-                      <button
-                        id="btn-open-unlocked-chest"
-                        onClick={handleOpenUnlockedChest}
-                        className="w-full py-2.5 bg-gradient-to-b from-[#8f6834] to-[#593f1c] hover:from-[#a6793d] hover:to-[#6d4d23] text-amber-100 font-serif font-bold text-xs rounded border border-[#dfb15b] shadow cursor-pointer"
-                      >
-                        Open Chest Lid & Roll Loot Table (1d20)
-                      </button>
+                      <p className="text-xs text-stone-400 font-serif italic">The chest is unlocked and ready to open.</p>
                     )}
                   </div>
                 )
@@ -716,16 +726,6 @@ export const RoomView: React.FC<RoomViewProps> = ({
                   <strong className="text-amber-300">Sanctuary Rules:</strong> Mid-level resting at the hearth is not permitted. While exploring this floor, use <strong>food rations and healing potions</strong> directly from your backpack, or seek out sacred <strong>divine shrines</strong> to restore your health and energy.
                 </div>
               </div>
-              {onOpenInventory && (
-                <button
-                  id="btn-open-backpack-hearth"
-                  onClick={onOpenInventory}
-                  className="w-full py-2.5 px-3 bg-[#382617] hover:bg-[#4d3521] text-amber-200 border border-[#6b4c2b] rounded-lg text-xs font-serif font-bold flex items-center justify-center gap-2 cursor-pointer shadow transition-all hover:scale-[1.01] active:scale-[0.98]"
-                >
-                  <Package className="w-4 h-4 text-amber-300" />
-                  <span>Open Backpack (Rations & Potions)</span>
-                </button>
-              )}
             </div>
           )}
 
@@ -739,14 +739,6 @@ export const RoomView: React.FC<RoomViewProps> = ({
               <p className="text-xs text-stone-300 font-serif mb-3">
                 “Welcome, traveler! My pack is full of potions, armor, pickaxes, and sharp steel.”
               </p>
-              <button
-                id="btn-open-merchant"
-                onClick={onOpenMerchant}
-                className="w-full py-2.5 bg-gradient-to-b from-[#29542a] to-[#1a381b] hover:from-[#356d36] hover:to-[#224723] text-emerald-100 font-serif font-bold text-sm rounded border border-emerald-500 shadow-md flex items-center justify-center gap-2 cursor-pointer"
-              >
-                <Store className="w-4 h-4" />
-                <span>TRADE WITH OLAF</span>
-              </button>
             </div>
           )}
 
@@ -758,16 +750,7 @@ export const RoomView: React.FC<RoomViewProps> = ({
                 <span>{room.shrine.name}</span>
               </div>
               <p className="text-xs text-stone-300 font-serif mb-3">{room.shrine.description}</p>
-              {!room.shrine.used ? (
-                <button
-                  id="btn-pray-shrine"
-                  onClick={handlePrayAtShrine}
-                  className="w-full py-2.5 bg-[#253245] hover:bg-[#34455e] text-cyan-200 border border-[#486387] rounded text-xs font-serif font-bold flex items-center justify-center gap-1.5 cursor-pointer"
-                >
-                  <Sparkles className="w-4 h-4 text-cyan-400" />
-                  <span>Pray for Divine Blessing</span>
-                </button>
-              ) : (
+              {room.shrine.used && (
                 <div className="text-xs text-stone-400 font-serif italic">
                   The altar's celestial glow has faded into quiet stone.
                 </div>
@@ -786,21 +769,11 @@ export const RoomView: React.FC<RoomViewProps> = ({
                 <div className="text-xs text-stone-400 font-serif italic">
                   ✓ Hidden compartment discovered and looted.
                 </div>
-              ) : room.secret.isFailed ? (
+              ) : room.secret.isFailed && (
                 <div className="text-xs text-stone-400 font-serif italic bg-[#18111f] p-2.5 rounded border border-purple-900/60 flex items-center gap-2">
                   <HelpCircle className="w-4 h-4 text-stone-500 shrink-0" />
                   <span>✖ Search abandoned. You inspected the crumbling masonry but found no concealed alcoves.</span>
                 </div>
-              ) : (
-                <button
-                  id="btn-search-secret"
-                  disabled={isRolling}
-                  onClick={handleSearchSecret}
-                  className="w-full py-2.5 bg-[#362540] hover:bg-[#483354] text-purple-200 border border-[#68477a] rounded text-xs font-serif font-bold flex items-center justify-center gap-1.5 cursor-pointer"
-                >
-                  <Dices className="w-4 h-4 text-purple-400" />
-                  <span>Search Wall (INT/LCK vs DC {room.secret.difficulty})</span>
-                </button>
               )}
             </div>
           )}
@@ -832,18 +805,6 @@ export const RoomView: React.FC<RoomViewProps> = ({
                   : `A heavy iron portcullis blocks the staircase. You must defeat ${room.monster.name} to unlock it.`}
               </p>
 
-              {(!room.monster || room.monster.hp <= 0) && (
-                <button
-                  id="btn-descend-stairs"
-                  onClick={onDescendFloor}
-                  className="w-full py-2.5 bg-gradient-to-b from-[#2a3d66] to-[#182540] hover:from-[#354e82] hover:to-[#203154] text-blue-100 font-serif font-bold text-sm rounded border border-blue-400 shadow-md flex items-center justify-center gap-2 cursor-pointer animate-pulse"
-                >
-                  <Footprints className="w-4 h-4" />
-                  <span>
-                    {floor.floorNumber === 3 ? 'CLAIM VICTORY & COMPLETE DUNGEON' : `DESCEND TO FLOOR ${floor.floorNumber + 1}`}
-                  </span>
-                </button>
-              )}
             </div>
           )}
         </div>
