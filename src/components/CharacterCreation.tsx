@@ -481,11 +481,6 @@ export const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacte
             race: destinyDiagnosis.race.name,
             raceTrait: destinyDiagnosis.race.trait,
             summary: destinyDiagnosis.reason,
-            classDescription: destinyDiagnosis.classDescription,
-            flavour: destinyDiagnosis.flavour,
-            personality: destinyDiagnosis.personality,
-            quirks: destinyDiagnosis.quirks,
-            flaw: destinyDiagnosis.flaw,
           }
         : undefined,
       level: 1,
@@ -544,8 +539,6 @@ export const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacte
     }
   };
 
-  const highestStatScore = Math.max(...STAT_ORDER.map(({ key }) => stats[key]));
-  const lowestStatScore = Math.min(...STAT_ORDER.map(({ key }) => stats[key]));
 
   const rolledCount = STAT_ORDER.filter((s) => rolledStatBreakdowns[s.key] !== undefined).length;
   const allRolled = rolledCount === STAT_ORDER.length;
@@ -720,32 +713,10 @@ export const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacte
             </div>
 
             {/* Narrative Reasoning Box */}
-            <div className="p-4 bg-stone-950/80 rounded-xl border border-amber-900/70 space-y-2">
+            <div className="p-4 bg-stone-950/80 rounded-xl border border-amber-900/70">
               <p className="text-sm font-serif text-stone-200 leading-relaxed italic">
                 "{destinyDiagnosis.reason}"
               </p>
-              {destinyDiagnosis.flavour && (
-                <p className="text-sm font-serif text-amber-200/90 leading-relaxed">
-                  {destinyDiagnosis.flavour}
-                </p>
-              )}
-              {destinyDiagnosis.classDescription && (
-                <p className="text-xs font-serif text-stone-400 leading-relaxed">
-                  {destinyDiagnosis.classDescription}
-                </p>
-              )}
-              {destinyDiagnosis.personality && (
-                <div className="pt-2 border-t border-stone-800 text-xs font-serif">
-                  <span className="font-bold text-amber-300">{destinyDiagnosis.personality.title}.</span>{' '}
-                  <span className="text-stone-300">{destinyDiagnosis.personality.description}</span>
-                </div>
-              )}
-              {(destinyDiagnosis.quirks?.length || destinyDiagnosis.flaw) && (
-                <div className="flex flex-wrap gap-x-4 gap-y-1 pt-1 text-[11px] font-serif text-stone-400">
-                  {destinyDiagnosis.quirks?.map((quirk) => <span key={quirk}>Quirk: {quirk}</span>)}
-                  {destinyDiagnosis.flaw && <span className="text-red-300">Flaw: {destinyDiagnosis.flaw}</span>}
-                </div>
-              )}
             </div>
 
             {/* Rolled Attributes Summary */}
@@ -755,22 +726,22 @@ export const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacte
                 {STAT_ORDER.map(({ key }) => {
                   const val = stats[key];
                   const mod = getStatModifier(val);
-                  const isHighest = highestStatScore !== lowestStatScore && val === highestStatScore;
-                  const isLowest = highestStatScore !== lowestStatScore && val === lowestStatScore;
+                  const isHigh = val >= 15;
+                  const isLow = val <= 9;
                   return (
                     <div
                       key={key}
-                      aria-label={`${key}: ${val}${isHighest ? ', highest stat' : isLowest ? ', lowest stat' : ''}`}
+                      aria-label={`${key}: ${val}${isHigh ? ', high stat' : isLow ? ', low stat' : ''}`}
                       className={`p-2 rounded-lg border ${
-                        isHighest
+                        isHigh
                           ? 'bg-emerald-950/70 border-emerald-600'
-                          : isLowest
+                          : isLow
                           ? 'bg-red-950/70 border-red-700'
                           : 'bg-stone-950/90 border-amber-950'
                       }`}
                     >
                       <div className="text-[10px] text-stone-400">{key}</div>
-                      <div className={`text-base font-black ${isHighest ? 'text-emerald-300' : isLowest ? 'text-red-300' : 'text-cyan-300'}`}>{val}</div>
+                      <div className={`text-base font-black ${isHigh ? 'text-emerald-300' : isLow ? 'text-red-300' : 'text-cyan-300'}`}>{val}</div>
                       <div className="text-[10px] font-bold text-amber-400">
                         {mod >= 0 ? `+${mod}` : mod}
                       </div>
@@ -927,23 +898,23 @@ export const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacte
                 <div className="grid grid-cols-5 gap-1.5 text-center font-mono">
                   {STAT_ORDER.map(({ key }) => {
                     const value = stats[key];
-                    const isHighest = highestStatScore !== lowestStatScore && value === highestStatScore;
-                    const isLowest = highestStatScore !== lowestStatScore && value === lowestStatScore;
+                    const isHigh = value >= 15;
+                    const isLow = value <= 9;
                     const modifier = getStatModifier(value);
                     return (
                       <div
                         key={key}
-                        aria-label={`${key}: ${value}${isHighest ? ', highest stat' : isLowest ? ', lowest stat' : ''}`}
+                        aria-label={`${key}: ${value}${isHigh ? ', high stat' : isLow ? ', low stat' : ''}`}
                         className={`p-1.5 rounded-lg border ${
-                          isHighest
+                          isHigh
                             ? 'bg-emerald-950/70 border-emerald-600'
-                            : isLowest
+                            : isLow
                             ? 'bg-red-950/70 border-red-700'
                             : 'bg-stone-950 border-stone-800'
                         }`}
                       >
                         <div className="text-[10px] text-stone-400">{key}</div>
-                        <div className={`text-sm font-bold ${isHighest ? 'text-emerald-300' : isLowest ? 'text-red-300' : 'text-amber-300'}`}>{value}</div>
+                        <div className={`text-sm font-bold ${isHigh ? 'text-emerald-300' : isLow ? 'text-red-300' : 'text-amber-300'}`}>{value}</div>
                         <div className="text-[9px] text-stone-500">
                           {modifier >= 0 ? `+${modifier}` : modifier}
                         </div>

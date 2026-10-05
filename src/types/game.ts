@@ -55,11 +55,6 @@ export interface HeroDestinyProfile {
   race: string;
   raceTrait: string;
   summary: string;
-  classDescription?: string;
-  flavour?: string;
-  personality?: { title: string; description: string };
-  quirks?: string[];
-  flaw?: string;
 }
 
 export type ItemRarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';

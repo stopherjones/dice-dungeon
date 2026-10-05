@@ -13,12 +13,6 @@ export interface DestinyDiagnosis {
   verdictTag: string;
   reason: string;
   fateTokenCount: number;
-  // Optional extras, safe for existing callers to ignore
-  classDescription?: string;
-  flavour?: string;
-  personality?: { title: string; description: string };
-  quirks?: string[];
-  flaw?: string;
 }
 
 export interface RaceResult { name: string; trait: string; fate: number; index: number }
@@ -35,22 +29,18 @@ interface Cond {
 interface Text { label: string; callingTitle: string; verdictTag: string; reason: string }
 interface Rule extends Text { id: string; class?: HeroClassId; fateTokens?: number; when: Cond | Cond[] }
 interface Pick { top?: StatType; second?: StatType; low?: StatType; minTop?: number; class: HeroClassId; label?: string; callingTitle?: string; verdictTag?: string; reason?: string }
-interface Override { top?: StatType; second?: StatType; low?: StatType; class?: HeroClassId; text: string }
 interface Race { name: string; trait: string; nameStarts: string[]; nameEnds: string[] }
 interface Tables {
-  classes: Record<HeroClassId, { fateTokens: number; callingTitle?: string; description?: string; pitch: string }>;
+  classes: Record<HeroClassId, { fateTokens: number; callingTitle?: string }>;
   rules: Rule[];
   fallback: Text & { mode: 'picks' | 'candidates'; candidates: { class: HeroClassId; stats: StatType[] }[] };
   picks: { defaults: { label: string; verdictTag: string; reason: string }; rows: Pick[] };
   display: { titleFormat: string };
   races: { rows: Race[] };
-  stats: Record<StatType, { name: string; highAdj: string; lowPhrase: string; lowTitle: string; quirk: string; flaw: string }>;
-  personalities: { title: string; description: string }[];
-  flavour: { strongMin: number; weakMax: number; overrides: Override[] };
 }
 
 const T = raw as unknown as Tables;
-const STATS = Object.keys(T.stats) as StatType[]; // key order in the JSON is the tie-break order
+const STATS: StatType[] = ['STR', 'DEX', 'CON', 'INT', 'LCK'];
 
 /** Fails loudly, with a useful message, if a hand edit of destiny.json breaks a reference. */
 function validate(): void {
@@ -69,15 +59,8 @@ function validate(): void {
     cls(p.class, `picks row ${i + 1}`);
     [p.top, p.second, p.low].forEach((s) => { if (s) stat(s, `picks row ${i + 1}`); });
   });
-  T.flavour.overrides.forEach((o, i) => {
-    [o.top, o.second, o.low].forEach((s) => { if (s) stat(s, `flavour override ${i + 1}`); });
-    if (o.class) cls(o.class, `flavour override ${i + 1}`);
-  });
   if (!T.races.rows.length) bad('races needs at least one row');
   T.races.rows.forEach((r) => { if (!r.nameStarts.length || !r.nameEnds.length) bad(`race "${r.name}" needs nameStarts and nameEnds`); });
-  if (T.personalities.length !== STATS.length + 1) {
-    bad(`personalities needs ${STATS.length + 1} entries (0 to ${STATS.length} odd stats)`);
-  }
 }
 validate();
 
@@ -87,8 +70,7 @@ const fill = (t: string, v: Record<string, string | number>) =>
 
 function rank(s: CharacterStats) {
   const order = STATS.map((k, i) => ({ k, v: s[k], i })).sort((a, b) => b.v - a.v || a.i - b.i);
-  return { order, top: order[0], second: order[1], low: order[order.length - 1],
-           odd: order.filter((x) => x.v % 2).sort((a, b) => a.i - b.i) };
+  return { top: order[0], second: order[1], low: order[order.length - 1] };
 }
 type Rank = ReturnType<typeof rank>;
 
@@ -116,35 +98,6 @@ function pickRow(r: Rank): Pick | undefined {
   return best;
 }
 
-function describe(r: Rank, classId: HeroClassId) {
-  const { top, second, low, odd } = r;
-  const F = T.flavour;
-  const weak = low.v <= F.weakMax;
-
-  const keys = [['top', top.k], ['second', second.k], ['low', low.k], ['class', classId]] as const;
-  let best: Override | undefined;
-  let n = 0;
-  for (const o of F.overrides) {
-    const set = keys.filter(([f]) => o[f]);
-    if (set.length > n && set.every(([f, val]) => o[f] === val)) { best = o; n = set.length; }
-  }
-
-  const strengths = [top, second].filter((x) => x.v >= F.strongMin).map((x) => T.stats[x.k].highAdj);
-  const adj = weak ? T.stats[low.k].lowTitle : '';
-  const art = /^[aeiou]/i.test(adj || classId) ? 'an' : 'a';
-  const generated =
-    `Your character is ${strengths.length ? strengths.join(' and ') : 'unremarkable'}` +
-    `${weak ? `, but ${T.stats[low.k].lowPhrase}` : ', with no real weakness'}. ` +
-    `They are ${art} ${adj ? adj + ' ' : ''}${classId}, ${T.classes[classId].pitch}.`;
-
-  return {
-    flavour: best?.text ?? generated,
-    personality: T.personalities[odd.length],
-    quirks: odd.slice(0, 3).map((x) => T.stats[x.k].quirk),
-    flaw: weak ? T.stats[low.k].flaw : undefined,
-  };
-}
-
 function build(classId: HeroClassId, text: Partial<Text>, s: CharacterStats, total: number, max: number, r: Rank, tokens?: number): DestinyDiagnosis {
   const cls = T.classes[classId];
   const fateTokens = tokens ?? cls.fateTokens;
@@ -160,8 +113,6 @@ function build(classId: HeroClassId, text: Partial<Text>, s: CharacterStats, tot
     verdictTag: fill(text.verdictTag ?? T.fallback.verdictTag, v),
     reason: fill(text.reason ?? T.fallback.reason, v),
     fateTokenCount: fateTokens,
-    classDescription: cls.description,
-    ...describe(r, classId),
   };
 }
 
@@ -225,7 +176,7 @@ export function formatTitle(classId: HeroClassId, raceName?: string): string {
 
 export interface Destiny extends DestinyDiagnosis { race: RaceResult; title: string }
 
-/** One call for the calling screen: label, title (race + class), reason, flavour and the rest. */
+/** One call for the calling screen: label, title (race + class), trait and reason. */
 export function determineDestiny(stats: CharacterStats, keptDice: readonly number[]): Destiny {
   const diagnosis = determineHeroClassFromStats(stats);
   const race = determineRace(keptDice);

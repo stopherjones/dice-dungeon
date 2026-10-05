@@ -194,28 +194,7 @@ export const AdventurerDetailsPanel: React.FC<AdventurerDetailsPanelProps> = ({
             <h3 className="font-serif font-bold text-amber-100">{hero.destinyProfile.title}</h3>
           </div>
           <p className="text-xs font-serif text-stone-400">{hero.destinyProfile.raceTrait}</p>
-          <p className="text-sm font-serif leading-relaxed text-stone-200">{hero.destinyProfile.summary}</p>
-          {hero.destinyProfile.flavour && (
-            <p className="text-xs font-serif leading-relaxed text-amber-200/90">{hero.destinyProfile.flavour}</p>
-          )}
-          {hero.destinyProfile.personality && (
-            <p className="text-xs font-serif text-stone-300">
-              <strong className="text-amber-300">{hero.destinyProfile.personality.title}.</strong>{' '}
-              {hero.destinyProfile.personality.description}
-            </p>
-          )}
-          {hero.destinyProfile.quirks && hero.destinyProfile.quirks.length > 0 && (
-            <div className="flex flex-wrap gap-1.5">
-              {hero.destinyProfile.quirks.map((quirk) => (
-                <span key={quirk} className="px-2 py-0.5 bg-stone-950 rounded border border-stone-800 text-[10px] text-stone-300">
-                  {quirk}
-                </span>
-              ))}
-            </div>
-          )}
-          {hero.destinyProfile.flaw && (
-            <p className="text-xs font-serif text-red-300">{hero.destinyProfile.flaw}</p>
-          )}
+          <p className="text-sm font-serif leading-relaxed text-stone-200 italic">"{hero.destinyProfile.summary}"</p>
         </section>
       )}
 

@@ -3,71 +3,46 @@
   "classes": {
     "warrior": {
       "fateTokens": 1,
-      "callingTitle": "Veteran Warrior of the Vanguard",
-      "description": "Trained in every weapon and a bit of everything else.",
-      "pitch": "trusted to hold the line when things go wrong"
+      "callingTitle": "Veteran Warrior of the Vanguard"
     },
     "rogue": {
       "fateTokens": 2,
-      "callingTitle": "Shadowblade Rogue & Infiltrator",
-      "description": "Quick hands, quicker exits.",
-      "pitch": "at their best when nobody sees them coming"
+      "callingTitle": "Shadowblade Rogue & Infiltrator"
     },
     "wizard": {
       "fateTokens": 1,
-      "callingTitle": "Arcane Scholar & Elementalist",
-      "description": "Knowledge is the only armor worth wearing.",
-      "pitch": "dealing death from a safe distance"
+      "callingTitle": "Arcane Scholar & Elementalist"
     },
     "cleric": {
       "fateTokens": 1,
-      "callingTitle": "Cleric of the Sacred Dawn",
-      "description": "A conduit for something far larger than you.",
-      "pitch": "a steady presence the whole party leans on"
+      "callingTitle": "Cleric of the Sacred Dawn"
     },
     "paladin": {
       "fateTokens": 1,
-      "callingTitle": "Holy Crusader Paladin",
-      "description": "Sworn to an oath and backed by sheer presence.",
-      "pitch": "driven by an oath and the nerve to keep it"
+      "callingTitle": "Holy Crusader Paladin"
     },
     "ranger": {
       "fateTokens": 1,
-      "callingTitle": "Wilderness Ranger & Tracker",
-      "description": "Tracker of the places maps leave blank.",
-      "pitch": "capable and comfortable forging their own path"
+      "callingTitle": "Wilderness Ranger & Tracker"
     },
     "hero": {
       "fateTokens": 1,
-      "callingTitle": "Paragon Champion of Destiny",
-      "description": "Everything came together on the roll, and the dungeon will regret it.",
-      "pitch": "marked out for greatness from the first roll"
+      "callingTitle": "Paragon Champion of Destiny"
     },
     "jester": {
       "fateTokens": 4,
-      "callingTitle": "The Dungeon Jester (The Fool)",
-      "description": "The gods rolled badly, so the bells and a lot of nerve will have to do.",
-      "pitch": "armed with audacity and an improbable amount of luck"
+      "callingTitle": "The Dungeon Jester (The Fool)"
     }
   },
   "rules": [
     {
       "id": "hero",
       "class": "hero",
-      "when": [{"totalMin": 67}, {"highCount": {"value": 15, "count": 3}}],
+      "when": {"totalMin": 67, "statMin": {"STR": 10, "DEX": 10, "CON": 10, "INT": 10, "LCK": 10}},
       "label": "Highly skilled Champion",
       "callingTitle": "Paragon Champion of Destiny",
       "verdictTag": "EXCEPTIONAL TALENT ACROSS THE BOARD",
       "reason": "Blessed with an extraordinary total attribute sum of {total} and high proficiency in both mind, body, and fortune. You are a legendary hero chosen for greatness!"
-    },
-    {
-      "id": "hero_no_weakness",
-      "class": "hero",
-      "when": {"statMin": {"STR": 10, "DEX": 10, "CON": 10, "INT": 10, "LCK": 10}},
-      "label": "Well-rounded Champion",
-      "callingTitle": "Paragon Champion of Destiny",
-      "verdictTag": "NO WEAKNESS ACROSS THE BOARD",
-      "reason": "No attribute fell below 10. Your balanced foundation gives you the tools to meet any challenge."
     },
     {
       "id": "jester",
@@ -108,7 +83,7 @@
     {
       "id": "rogue",
       "class": "rogue",
-      "when": [{"statMin": {"DEX": 14}}, {"statMin": {"LCK": 14}}],
+      "when": {"statMin": {"DEX": 14}, "statMin": {"LCK": 14}},
       "label": "Quick-fingered Opportunist",
       "callingTitle": "Shadowblade Rogue & Infiltrator",
       "verdictTag": "HIGH AGILITY & SLEIGHT OF HAND",
@@ -139,7 +114,7 @@
     "label": "Well-rounded Adventurer",
     "callingTitle": "{CLASS} CALLING",
     "verdictTag": "BALANCED ADVENTURER",
-    "reason": "{Class} by fate.",
+    "reason": "With no clear class or calling, your character has been designated {Class} by fate. They are a well-rounded adventurer, ready to face any challenge that comes their way.",
     "candidates": [
       {"class": "warrior", "stats": ["STR"]},
       {"class": "rogue", "stats": ["DEX"]},
@@ -236,68 +211,5 @@
   "display": {
     "_help": "Title shown on the calling screen. {race} {class} (lower case) {Class} (capitalised). Without a race the capitalised class is used. 'label' on a rule or pick row is the short snappy tag above the title. A rule with no 'class' is a tier: it supplies label and text, and the class comes from picks (add 'fateTokens' on it if it should override the class's).",
     "titleFormat": "{race} {Class}"
-  },
-  "stats": {
-    "STR": {
-      "name": "Strength",
-      "highAdj": "strong",
-      "lowPhrase": "lacking natural strength",
-      "lowTitle": "slight",
-      "quirk": "tests the weight of everything by lifting it",
-      "flaw": "Weak. Avoids anything heavy."
-    },
-    "DEX": {
-      "name": "Dexterity",
-      "highAdj": "dextrous",
-      "lowPhrase": "with little grace",
-      "lowTitle": "clumsy",
-      "quirk": "cannot stop fidgeting with small objects",
-      "flaw": "Clumsy. Breaks things at the worst moment."
-    },
-    "CON": {
-      "name": "Constitution",
-      "highAdj": "hardy",
-      "lowPhrase": "with a fragile constitution",
-      "lowTitle": "frail",
-      "quirk": "eats constantly and refuses to explain why",
-      "flaw": "Sickly. Catches whatever is going around."
-    },
-    "INT": {
-      "name": "Intelligence",
-      "highAdj": "intelligent",
-      "lowPhrase": "with little book learning",
-      "lowTitle": "naive",
-      "quirk": "corrects people mid-sentence, even allies",
-      "flaw": "Slow on the uptake. Needs plans repeated."
-    },
-    "LCK": {
-      "name": "Luck",
-      "highAdj": "lucky",
-      "lowPhrase": "with luck that never quite turns up",
-      "lowTitle": "hapless",
-      "quirk": "refuses to walk under ladders",
-      "flaw": "Unlucky. Things go wrong at the worst moment."
-    }
-  },
-  "personalities": [
-    {"title": "Fair", "description": "Even-handed to a fault. Splits the loot exactly and expects the same."},
-    {"title": "Fair, with one fixation", "description": "Reasonable in everything except one peculiar passion."},
-    {"title": "Quirky", "description": "Mostly predictable. Their habits are charming until they are not."},
-    {"title": "A coin flip", "description": "Honest or treacherous depending on the day. Even they do not know."},
-    {"title": "Eccentric", "description": "Conversations with them go somewhere unexpected. Often a ditch."},
-    {"title": "Utterly odd", "description": "Every instinct is off-centre. Strangely, it often works."}
-  ],
-  "flavour": {
-    "_help": "A stat of strongMin or more is called a strength; the lowest stat at weakMax or less is called a weakness. overrides: fill any of top, second, low, class (blank = any); the most specific match wins.",
-    "strongMin": 13,
-    "weakMax": 10,
-    "overrides": [
-      {
-        "top": "INT",
-        "low": "STR",
-        "class": "wizard",
-        "text": "Brilliant but physically frail, your character fights the only way they can: from a very safe distance."
-      }
-    ]
   }
 }
