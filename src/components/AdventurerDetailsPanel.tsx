@@ -185,6 +185,40 @@ export const AdventurerDetailsPanel: React.FC<AdventurerDetailsPanelProps> = ({
         </div>
       </div>
 
+      {hero.destinyProfile && (
+        <section className="p-3 sm:p-4 bg-[#241a12] border border-[#735438] rounded-lg text-stone-200 space-y-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="px-2 py-0.5 rounded bg-amber-950 border border-amber-700 text-amber-300 font-mono text-[10px] font-bold uppercase">
+              {hero.destinyProfile.label}
+            </span>
+            <h3 className="font-serif font-bold text-amber-100">{hero.destinyProfile.title}</h3>
+          </div>
+          <p className="text-xs font-serif text-stone-400">{hero.destinyProfile.raceTrait}</p>
+          <p className="text-sm font-serif leading-relaxed text-stone-200">{hero.destinyProfile.summary}</p>
+          {hero.destinyProfile.flavour && (
+            <p className="text-xs font-serif leading-relaxed text-amber-200/90">{hero.destinyProfile.flavour}</p>
+          )}
+          {hero.destinyProfile.personality && (
+            <p className="text-xs font-serif text-stone-300">
+              <strong className="text-amber-300">{hero.destinyProfile.personality.title}.</strong>{' '}
+              {hero.destinyProfile.personality.description}
+            </p>
+          )}
+          {hero.destinyProfile.quirks && hero.destinyProfile.quirks.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {hero.destinyProfile.quirks.map((quirk) => (
+                <span key={quirk} className="px-2 py-0.5 bg-stone-950 rounded border border-stone-800 text-[10px] text-stone-300">
+                  {quirk}
+                </span>
+              ))}
+            </div>
+          )}
+          {hero.destinyProfile.flaw && (
+            <p className="text-xs font-serif text-red-300">{hero.destinyProfile.flaw}</p>
+          )}
+        </section>
+      )}
+
       {/* Active Buffs / Spell Modifiers */}
       {hero.activeEffects && hero.activeEffects.length > 0 && (
         <div className="p-3 bg-[#1b1526] border border-purple-500/70 rounded-xl shadow-md">

@@ -41,18 +41,7 @@ import { STARTING_BOON_TABLE, StartingBoon, TableRow } from '../data/tables';
 import { LookupTableRoller } from './LookupTableRoller';
 import { roll4d6DropLowest, getStatModifier, RollResult } from '../utils/dice';
 import { sounds } from '../utils/audio';
-import { determineHeroClassFromStats, DestinyDiagnosis } from '../utils/destiny';
-
-const FANTASY_NAMES: Record<HeroClassId, string[]> = {
-  warrior: ['Alden Ironbreaker', 'Garrick Stoneheart', 'Bram the Undaunted', 'Valerius of the Vanguard', 'Theron Bloodaxe'],
-  rogue: ['Lyra Swiftfoot', 'Vesper Shadowveil', 'Kaelen Nightshade', 'Corvin Daggerfall', 'Sariel Lockpick'],
-  wizard: ['Elowen Starwatcher', 'Theron Spellweaver', 'Zephyr of the Peaks', 'Ignis Flamebearer', 'Morwen Arcane'],
-  cleric: ['Brother Matthew', 'Elysia the Devout', 'Althea of the Dawn', 'Cedric Lightbringer', 'Gideon the Pure'],
-  paladin: ['Sir Roland the Just', 'Morgana Ironwill', 'Lucian Sunshield', 'Lady Vivienne', 'Arthur Goldenheart'],
-  ranger: ['Finnian Silverbow', 'Hawthorne Trailfinder', 'Sylvia Wildwood', 'Ronan Bowstrider', 'Talon Keeneye'],
-  hero: ['Sir Galahad the Brave', 'Kaelen Sunstride', 'Victoria the Undaunted', 'Alexander Starforged', 'Aurelia Crownbearer'],
-  jester: ['Pip the Fool', 'Fidget Merrybell', 'Boffo Motley', 'Barnaby the Clumsy', 'Joff the Ridiculous'],
-};
+import { determineDestiny, Destiny, suggestName } from '../utils/destiny';
 
 interface CharacterCreationProps {
   onCharacterCreated: (hero: HeroCharacter) => void;
@@ -186,7 +175,7 @@ export const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacte
   const timer3Ref = useRef<number | null>(null);
 
   // Assigned Destiny & Class
-  const [destinyDiagnosis, setDestinyDiagnosis] = useState<DestinyDiagnosis | null>(null);
+  const [destinyDiagnosis, setDestinyDiagnosis] = useState<Destiny | null>(null);
   const [selectedClassId, setSelectedClassId] = useState<HeroClassId>('warrior');
 
   // Boon table rolling state (1d6 table roll)
@@ -342,13 +331,15 @@ export const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacte
 
   // Reveal Destiny & Assigned Class based on rolled stats
   const handleRevealDestiny = () => {
-    const diagnosis = determineHeroClassFromStats(stats);
+    const keptDice = STAT_ORDER.flatMap(({ key }) => {
+      const breakdown = rolledStatBreakdowns[key];
+      return breakdown.rolls.filter((_, index) => index !== breakdown.droppedIndex);
+    });
+    const diagnosis = determineDestiny(stats, keptDice);
     setDestinyDiagnosis(diagnosis);
     setSelectedClassId(diagnosis.classId);
     setFateTokens(diagnosis.fateTokenCount);
-
-    const nameList = FANTASY_NAMES[diagnosis.classId] || FANTASY_NAMES.warrior;
-    setCharacterName(nameList[Math.floor(Math.random() * nameList.length)]);
+    setCharacterName(suggestName(diagnosis.race.name));
 
     sounds.playLevelUp();
     setCurrentStep('DESTINY_REVEAL');
@@ -382,10 +373,9 @@ export const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacte
   };
 
   const handleRandomName = () => {
+    if (!destinyDiagnosis) return;
     sounds.playCoins();
-    const names = FANTASY_NAMES[selectedClassId] || FANTASY_NAMES.warrior;
-    const random = names[Math.floor(Math.random() * names.length)];
-    setCharacterName(random);
+    setCharacterName(suggestName(destinyDiagnosis.race.name));
   };
 
   // Finalize Hero & Enter Dungeon
@@ -484,6 +474,20 @@ export const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacte
     const hero: HeroCharacter = {
       name: characterName.trim() || 'Nameless Explorer',
       classId: selectedClass.id,
+      destinyProfile: destinyDiagnosis
+        ? {
+            label: destinyDiagnosis.label,
+            title: destinyDiagnosis.title,
+            race: destinyDiagnosis.race.name,
+            raceTrait: destinyDiagnosis.race.trait,
+            summary: destinyDiagnosis.reason,
+            classDescription: destinyDiagnosis.classDescription,
+            flavour: destinyDiagnosis.flavour,
+            personality: destinyDiagnosis.personality,
+            quirks: destinyDiagnosis.quirks,
+            flaw: destinyDiagnosis.flaw,
+          }
+        : undefined,
       level: 1,
       xp: 0,
       xpToNextLevel: 100,
@@ -703,11 +707,12 @@ export const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacte
             <div className="border-b border-amber-900/60 pb-3 flex items-start justify-between gap-2 sm:gap-4">
               <div className="min-w-0 flex-1">
                 <span className="px-2.5 py-0.5 rounded text-[11px] font-mono font-bold uppercase bg-amber-950 border border-amber-600 text-amber-300">
-                  {destinyDiagnosis.verdictTag}
+                  {destinyDiagnosis.label}
                 </span>
                 <h3 className="text-xl sm:text-3xl font-serif font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-amber-400 to-amber-200 mt-1 leading-tight">
-                  {destinyDiagnosis.callingTitle}
+                  {destinyDiagnosis.title}
                 </h3>
+                <p className="mt-1 text-xs text-stone-400 font-serif">{destinyDiagnosis.race.trait}</p>
               </div>
               <div className="w-10 h-10 sm:w-12 sm:h-12 shrink-0 grid place-items-center bg-amber-500/20 border border-amber-500 rounded-xl text-amber-400">
                 {getClassIcon(selectedClass.icon)}
@@ -719,6 +724,28 @@ export const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacte
               <p className="text-sm font-serif text-stone-200 leading-relaxed italic">
                 "{destinyDiagnosis.reason}"
               </p>
+              {destinyDiagnosis.flavour && (
+                <p className="text-sm font-serif text-amber-200/90 leading-relaxed">
+                  {destinyDiagnosis.flavour}
+                </p>
+              )}
+              {destinyDiagnosis.classDescription && (
+                <p className="text-xs font-serif text-stone-400 leading-relaxed">
+                  {destinyDiagnosis.classDescription}
+                </p>
+              )}
+              {destinyDiagnosis.personality && (
+                <div className="pt-2 border-t border-stone-800 text-xs font-serif">
+                  <span className="font-bold text-amber-300">{destinyDiagnosis.personality.title}.</span>{' '}
+                  <span className="text-stone-300">{destinyDiagnosis.personality.description}</span>
+                </div>
+              )}
+              {(destinyDiagnosis.quirks?.length || destinyDiagnosis.flaw) && (
+                <div className="flex flex-wrap gap-x-4 gap-y-1 pt-1 text-[11px] font-serif text-stone-400">
+                  {destinyDiagnosis.quirks?.map((quirk) => <span key={quirk}>Quirk: {quirk}</span>)}
+                  {destinyDiagnosis.flaw && <span className="text-red-300">Flaw: {destinyDiagnosis.flaw}</span>}
+                </div>
+              )}
             </div>
 
             {/* Rolled Attributes Summary */}
@@ -875,7 +902,7 @@ export const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacte
                 <div>
                   <div className="text-[11px] font-mono text-stone-400 uppercase">CLASS & CALLING</div>
                   <div className="text-lg font-serif font-black text-amber-200">
-                    {selectedClass.name} • {selectedClass.title}
+                    {destinyDiagnosis?.title || `${selectedClass.name} • ${selectedClass.title}`}
                   </div>
                 </div>
 

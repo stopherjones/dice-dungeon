@@ -63,7 +63,7 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({
           <div className="flex items-center gap-2">
             <h2 className="text-base font-serif font-bold text-[#f5e4c6] tracking-wide">{hero.name}</h2>
             <span className="text-[10px] font-mono font-bold bg-[#3d2a19] text-[#e5b967] px-2 py-0.5 rounded border border-[#6b4c2b] uppercase">
-              Lv. {hero.level} {hero.classId}
+              Lv. {hero.level} {hero.destinyProfile?.title || hero.classId}
             </span>
           </div>
           <div className="text-[11px] text-stone-400 font-serif">AC {computedArmor} • Total Defense</div>

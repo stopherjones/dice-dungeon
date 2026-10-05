@@ -49,6 +49,19 @@ export interface HeroSkill {
   level?: number;
 }
 
+export interface HeroDestinyProfile {
+  label: string;
+  title: string;
+  race: string;
+  raceTrait: string;
+  summary: string;
+  classDescription?: string;
+  flavour?: string;
+  personality?: { title: string; description: string };
+  quirks?: string[];
+  flaw?: string;
+}
+
 export type ItemRarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
 export type ItemType = 'weapon' | 'shield' | 'armor' | 'helmet' | 'boots' | 'ring' | 'amulet' | 'potion' | 'scroll' | 'tool' | 'treasure';
 
@@ -120,6 +133,7 @@ export interface StatusEffect {
 export interface HeroCharacter {
   name: string;
   classId: HeroClassId;
+  destinyProfile?: HeroDestinyProfile;
   level: number;
   xp: number;
   xpToNextLevel: number;
