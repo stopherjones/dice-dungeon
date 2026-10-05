@@ -1,215 +1,966 @@
 {
-  "_help": "Edit me. rules are checked top to bottom and the first match wins; if none match, picks (or fallback candidates) decide. 'when' is one set of conditions (all must hold) or a list of sets (any set may hold). Placeholders in rule text: {STR} {DEX} {CON} {INT} {LCK} {total} {max} {fateTokens} {CLASS} {Class}.",
+  "_help": "Edit me. rules are checked top to bottom and the first match wins; if none match, picks decide. 'when' is one set of conditions (all must hold) or a list of sets (any set may hold). Placeholders in text: {STR} {DEX} {CON} {INT} {LCK} {total} {max} {fateTokens} {CLASS} {Class} {class} {race}. Picks and rules also allow {top} {second} {low} {topValue} {secondValue} and the stat-word placeholders {topAdj} {secondAdj} {lowAdj} (capitalised: {TopAdj} {SecondAdj} {LowAdj}) plus {lowClause}. A pick row's 'note' is added after the main reason; with no note, the class 'pitch' is used.",
   "classes": {
     "warrior": {
       "fateTokens": 1,
-      "callingTitle": "Veteran Warrior of the Vanguard"
+      "callingTitle": "Veteran Warrior of the Vanguard",
+      "pitch": "The front line is where you belong."
     },
-    "rogue": {
-      "fateTokens": 2,
-      "callingTitle": "Shadowblade Rogue & Infiltrator"
-    },
-    "wizard": {
+    "barbarian": {
       "fateTokens": 1,
-      "callingTitle": "Arcane Scholar & Elementalist"
-    },
-    "cleric": {
-      "fateTokens": 1,
-      "callingTitle": "Cleric of the Sacred Dawn"
+      "callingTitle": "Raging Barbarian of the Wastes",
+      "pitch": "Rage is your craft, and the wilds are your guild."
     },
     "paladin": {
       "fateTokens": 1,
-      "callingTitle": "Holy Crusader Paladin"
+      "callingTitle": "Holy Crusader Paladin",
+      "pitch": "An oath, a shield and a stubborn heart will do the rest."
+    },
+    "swashbuckler": {
+      "fateTokens": 2,
+      "callingTitle": "Dashing Swashbuckler & Duelist",
+      "pitch": "Steel, flair and a quick quip: the duelling floor is yours."
+    },
+    "rogue": {
+      "fateTokens": 2,
+      "callingTitle": "Shadowblade Rogue & Infiltrator",
+      "pitch": "Shadows, locks and unguarded purses await."
     },
     "ranger": {
       "fateTokens": 1,
-      "callingTitle": "Wilderness Ranger & Tracker"
+      "callingTitle": "Wilderness Ranger & Tracker",
+      "pitch": "The wild paths know your footsteps."
+    },
+    "monk": {
+      "fateTokens": 1,
+      "callingTitle": "Disciplined Monk of the Quiet Path",
+      "pitch": "Discipline is your weapon, and your body is the blade."
+    },
+    "wizard": {
+      "fateTokens": 1,
+      "callingTitle": "Arcane Scholar & Elementalist",
+      "pitch": "The arcane arts reward minds like yours."
+    },
+    "sorcerer": {
+      "fateTokens": 2,
+      "callingTitle": "Wild-Blooded Sorcerer",
+      "pitch": "Power stirs in your blood, whether you ask for it or not."
+    },
+    "cleric": {
+      "fateTokens": 1,
+      "callingTitle": "Cleric of the Sacred Dawn",
+      "pitch": "The faithful will need you at the edge of every battle."
+    },
+    "druid": {
+      "fateTokens": 1,
+      "callingTitle": "Druid of the Old Groves",
+      "pitch": "The old groves speak, and you listen."
+    },
+    "bard": {
+      "fateTokens": 2,
+      "callingTitle": "Silver-Tongued Bard & Rumour-Monger",
+      "pitch": "Every tavern is a stage, and every crowd a story waiting to be told."
     },
     "hero": {
       "fateTokens": 1,
-      "callingTitle": "Paragon Champion of Destiny"
+      "callingTitle": "Paragon Champion of Destiny",
+      "pitch": "Destiny itself has taken notice."
     },
     "jester": {
       "fateTokens": 4,
-      "callingTitle": "The Dungeon Jester (The Fool)"
+      "callingTitle": "The Dungeon Jester (The Fool)",
+      "pitch": "Fate laughs, and you laugh with it."
     }
   },
   "rules": [
     {
       "id": "hero",
       "class": "hero",
-      "when": {"totalMin": 67, "statMin": {"STR": 10, "DEX": 10, "CON": 10, "INT": 10, "LCK": 10}},
+      "when": {
+        "totalMin": 67,
+        "statMin": {
+          "STR": 10,
+          "DEX": 10,
+          "CON": 10,
+          "INT": 10,
+          "LCK": 10
+        }
+      },
       "label": "Highly skilled Champion",
       "callingTitle": "Paragon Champion of Destiny",
       "verdictTag": "EXCEPTIONAL TALENT ACROSS THE BOARD",
-      "reason": "Blessed with an extraordinary total attribute sum of {total} and high proficiency in both mind, body, and fortune. You are a legendary hero chosen for greatness!"
+      "reason": "Blessed with an extraordinary total attribute sum of {total} and high proficiency in mind, body, and fortune, you are a legendary {race} hero chosen for greatness!"
     },
     {
-      "id": "jester",
-      "class": "jester",
-      "when": [{"totalMax": 53}, {"maxStatMax": 12}],
-      "label": "Fortune's Fool",
-      "callingTitle": "The Dungeon Jester (The Fool)",
+      "id": "underdog",
+      "when": [
+        {
+          "totalMax": 53
+        },
+        {
+          "maxStatMax": 12
+        }
+      ],
+      "label": "Hapless Commoner",
+      "callingTitle": "The Dungeon Underdog",
       "verdictTag": "WHOLLY WEAK ROLLS (PITY OF THE GODS)",
-      "reason": "With not a single attribute breaking past {max} (Total: {total}), every respectable guild shut their doors. You don the bells and motley—armed with sheer audacity, {fateTokens} Fate Rerolls, and ridiculous luck!"
-    },
-    {
-      "id": "warrior",
-      "class": "warrior",
-      "when": {"statMin": {"STR": 14}, "dominates": {"STR": ["DEX", "INT", "LCK"]}},
-      "label": "Frontline Bruiser",
-      "callingTitle": "Veteran Warrior of the Vanguard",
-      "verdictTag": "PREDOMINANT PHYSICAL MIGHT",
-      "reason": "Crushing physical power ({STR} Strength) and martial grit make heavy blades second nature. The front lines call your name."
-    },
-    {
-      "id": "wizard",
-      "class": "wizard",
-      "when": {"statMin": {"INT": 14}, "dominates": {"INT": ["STR", "DEX"]}},
-      "label": "Sharp-minded Scholar",
-      "callingTitle": "Arcane Scholar & Elementalist",
-      "verdictTag": "PEAK ARCANE INTELLECT",
-      "reason": "With an intellectual depth of {INT}, you manipulate the mystic weave effortlessly. Spellstaff and ancient grimoires answer your command."
-    },
-    {
-      "id": "ranger",
-      "class": "ranger",
-      "when": [{"statMin": {"DEX": 14, "STR": 12, "CON": 12}}, {"statMin": {"LCK": 14, "DEX": 13, "STR": 12, "CON": 12}}],
-      "label": "Hardy Pathfinder",
-      "callingTitle": "Wilderness Ranger & Tracker",
-      "verdictTag": "BALANCED AGILITY & SURVIVAL",
-      "reason": "A deadly pairing of {DEX} Dexterity with rugged endurance ({CON} CON) marks you as an apex wilderness scout and archer."
-    },
-    {
-      "id": "rogue",
-      "class": "rogue",
-      "when": {"statMin": {"DEX": 14}, "statMin": {"LCK": 14}},
-      "label": "Quick-fingered Opportunist",
-      "callingTitle": "Shadowblade Rogue & Infiltrator",
-      "verdictTag": "HIGH AGILITY & SLEIGHT OF HAND",
-      "reason": "Lightning reflexes ({DEX} DEX) and sharp fortune ({LCK} Luck) grant you mastery over traps, shadows, and lethal backstabs."
-    },
-    {
-      "id": "paladin",
-      "class": "paladin",
-      "when": {"statMin": {"CON": 13, "STR": 13}},
-      "label": "Stalwart Defender",
-      "callingTitle": "Holy Crusader Paladin",
-      "verdictTag": "DEVOUT STALWART DEFENSE",
-      "reason": "Blessed with iron stamina ({CON} CON) and disciplined strength ({STR} STR), you bear consecrated plate as an anointed knight."
-    },
-    {
-      "id": "cleric",
-      "class": "cleric",
-      "when": {"statMin": {"CON": 13}},
-      "label": "Unshakeable Healer",
-      "callingTitle": "Cleric of the Sacred Dawn",
-      "verdictTag": "SACRED RESILIENCE & RADIANCE",
-      "reason": "Your stalwart constitution ({CON} CON) and spiritual poise make you an unyielding conduit for holy smites and restorative prayers."
+      "reason": "With not a single attribute breaking past {max} (Total: {total}), every respectable guild shut their doors on you, humble {race}. Blessed with nothing more than pluck and ambition, you'll need all {fateTokens} Fate Rerolls, and ridiculous good luck!"
     }
   ],
   "fallback": {
-    "_help": "Used when no rule matches. mode 'picks' uses the picks table below; mode 'candidates' uses the old highest-score tie-break (set it to confirm nothing else changed).",
+    "_help": "Used when no rule matches. mode 'picks' uses the picks table below.",
     "mode": "picks",
     "label": "Well-rounded Adventurer",
     "callingTitle": "{CLASS} CALLING",
     "verdictTag": "BALANCED ADVENTURER",
-    "reason": "With no clear class or calling, your character has been designated {Class} by fate. They are a well-rounded adventurer, ready to face any challenge that comes their way.",
+    "reason": "With no clear calling, fate has designated you {Class}: a well-rounded adventurer ready for whatever comes.",
     "candidates": [
-      {"class": "warrior", "stats": ["STR"]},
-      {"class": "rogue", "stats": ["DEX"]},
-      {"class": "wizard", "stats": ["INT"]},
-      {"class": "cleric", "stats": ["CON"]},
-      {"class": "ranger", "stats": ["DEX", "STR"]}
+      {
+        "class": "warrior",
+        "stats": [
+          "STR"
+        ]
+      },
+      {
+        "class": "rogue",
+        "stats": [
+          "DEX"
+        ]
+      },
+      {
+        "class": "wizard",
+        "stats": [
+          "INT"
+        ]
+      },
+      {
+        "class": "cleric",
+        "stats": [
+          "CON"
+        ]
+      },
+      {
+        "class": "ranger",
+        "stats": [
+          "DEX",
+          "STR"
+        ]
+      }
     ]
   },
   "picks": {
-    "_help": "Used when no rule matches. The highest stat is 'top'. Leave top, second or low blank to mean any; the most specific matching row wins, ties go to the earlier row. minTop (optional) means the top stat must be at least that. verdictTag and reason are optional per row; the defaults below fill in. Extra placeholders: {top} {second} {low} {topValue} {secondValue}.",
+    "_help": "top = highest stat, second = next highest, low = lowest (ties for lowest go to the earlier of STR, DEX, CON, INT, LCK). Leave any blank to mean any; the most specific matching row wins, ties go to the earlier row (so 3-key rows beat 2-key rows beat 1-key rows). Only ONE low stat can be named per row. minTop (optional) means the top stat must be at least that. 'reason' replaces the main sentence; 'note' (optional) is added after it, and without a note the class pitch is added.",
     "defaults": {
       "label": "Well-rounded Adventurer",
       "verdictTag": "BALANCED ADVENTURER",
-      "reason": "Led by {top} ({topValue}), with {second} close behind: {Class} by fate."
+      "reason": "{TopAdj} and {secondAdj}{lowClause}, you are a natural {race} {class}."
     },
     "rows": [
-      {"top": "STR", "class": "warrior"},
-      {"top": "STR", "second": "CON", "class": "paladin"},
-      {"top": "STR", "second": "DEX", "class": "ranger"},
+      {
+        "top": "STR",
+        "class": "warrior",
+        "label": "Frontline Bruiser",
+        "verdictTag": "PHYSICAL MIGHT"
+      },
+      {
+        "top": "DEX",
+        "class": "rogue",
+        "label": "Quick-fingered Opportunist",
+        "verdictTag": "AGILITY & GUILE"
+      },
+      {
+        "top": "CON",
+        "class": "cleric",
+        "label": "Unshakeable Healer",
+        "verdictTag": "SACRED RESILIENCE"
+      },
+      {
+        "top": "INT",
+        "class": "wizard",
+        "label": "Sharp-minded Scholar",
+        "verdictTag": "ARCANE INTELLECT"
+      },
+      {
+        "top": "LCK",
+        "class": "bard",
+        "label": "Fortune's Favourite",
+        "verdictTag": "SILVER TONGUE & LUCK"
+      },
+      {
+        "top": "STR",
+        "second": "CON",
+        "class": "paladin",
+        "label": "Stalwart Defender",
+        "verdictTag": "DEVOUT DEFENCE"
+      },
+      {
+        "top": "STR",
+        "second": "DEX",
+        "class": "swashbuckler",
+        "label": "Dashing Duelist",
+        "verdictTag": "STRENGTH & FLAIR"
+      },
+      {
+        "top": "STR",
+        "second": "INT",
+        "class": "paladin",
+        "label": "Scholar-Knight",
+        "verdictTag": "DISCIPLINED MIGHT"
+      },
+      {
+        "top": "STR",
+        "second": "LCK",
+        "class": "warrior",
+        "label": "Fortunate Mercenary",
+        "verdictTag": "LUCKY SELLSWORD"
+      },
+      {
+        "top": "DEX",
+        "second": "STR",
+        "class": "ranger",
+        "label": "Lithe Archer",
+        "verdictTag": "SWIFT & STRONG"
+      },
+      {
+        "top": "DEX",
+        "second": "CON",
+        "class": "monk",
+        "label": "Disciplined Wanderer",
+        "verdictTag": "BODY AS WEAPON"
+      },
+      {
+        "top": "DEX",
+        "second": "INT",
+        "class": "rogue",
+        "label": "Cunning Spy",
+        "verdictTag": "WIT & SHADOW"
+      },
+      {
+        "top": "DEX",
+        "second": "LCK",
+        "class": "rogue",
+        "label": "Lucky Cutpurse",
+        "verdictTag": "LIGHT FINGERS, LIGHTER FATE"
+      },
+      {
+        "top": "CON",
+        "second": "STR",
+        "class": "barbarian",
+        "label": "Enduring Brute",
+        "verdictTag": "IMMOVABLE & FIERCE"
+      },
+      {
+        "top": "CON",
+        "second": "DEX",
+        "class": "ranger",
+        "label": "Hardy Pathfinder",
+        "verdictTag": "ENDURANCE & AGILITY"
+      },
+      {
+        "top": "CON",
+        "second": "INT",
+        "class": "druid",
+        "label": "Patient Naturalist",
+        "verdictTag": "ROOTED & WISE"
+      },
+      {
+        "top": "CON",
+        "second": "LCK",
+        "class": "cleric",
+        "label": "Hearth-blessed Healer",
+        "verdictTag": "GENTLE GOOD FORTUNE"
+      },
+      {
+        "top": "INT",
+        "second": "STR",
+        "class": "wizard",
+        "label": "Battle Mage",
+        "verdictTag": "SPELLS & STEEL"
+      },
+      {
+        "top": "INT",
+        "second": "DEX",
+        "class": "wizard",
+        "label": "Nimble Illusionist",
+        "verdictTag": "QUICK HANDS, QUICKER MIND"
+      },
+      {
+        "top": "INT",
+        "second": "CON",
+        "class": "cleric",
+        "label": "Learned Priest",
+        "verdictTag": "FAITH & LEARNING"
+      },
+      {
+        "top": "INT",
+        "second": "LCK",
+        "class": "wizard",
+        "label": "Fortunate Scholar",
+        "verdictTag": "LUCKY DISCOVERIES"
+      },
+      {
+        "top": "LCK",
+        "second": "STR",
+        "class": "warrior",
+        "label": "Gambling Sellsword",
+        "verdictTag": "FORTUNE FAVOURS THE BOLD"
+      },
+      {
+        "top": "LCK",
+        "second": "DEX",
+        "class": "rogue",
+        "label": "Charming Thief",
+        "verdictTag": "SMOOTH OPERATOR"
+      },
+      {
+        "top": "LCK",
+        "second": "CON",
+        "class": "cleric",
+        "label": "Blessed Pilgrim",
+        "verdictTag": "DIVINE FAVOUR"
+      },
+      {
+        "top": "LCK",
+        "second": "INT",
+        "class": "sorcerer",
+        "label": "Wild Talent",
+        "verdictTag": "POWER BY ACCIDENT"
+      },
       {
         "top": "STR",
         "low": "INT",
         "class": "warrior",
         "label": "Muscle over Mind",
         "verdictTag": "BRUTE FORCE",
-        "reason": "Heavy on muscle, light on thought: {STR} Strength carries you where {INT} Intelligence cannot."
+        "note": "Heavy on muscle, light on thought: {STR} Strength carries you where {INT} Intelligence cannot."
       },
-      {"top": "DEX", "class": "rogue"},
-      {"top": "DEX", "second": "STR", "class": "ranger"},
-      {"top": "DEX", "second": "CON", "class": "ranger"},
-      {"top": "CON", "class": "cleric"},
-      {"top": "CON", "second": "STR", "class": "paladin"},
-      {"top": "INT", "class": "wizard"},
-      {"top": "INT", "second": "CON", "class": "cleric"},
-      {"top": "LCK", "class": "rogue"},
-      {"top": "LCK", "second": "STR", "class": "warrior"},
-      {"top": "LCK", "second": "INT", "class": "wizard"},
-      {"top": "LCK", "second": "CON", "class": "cleric"}
+      {
+        "top": "STR",
+        "low": "DEX",
+        "class": "warrior",
+        "label": "Lumbering Tank",
+        "verdictTag": "IMMOVABLE, NOT NIMBLE",
+        "note": "Mighty ({STR} STR) but slow on your feet ({DEX} DEX): you don't dodge blows, you outlast them."
+      },
+      {
+        "top": "STR",
+        "low": "CON",
+        "class": "barbarian",
+        "label": "Reckless Berserker",
+        "verdictTag": "BURNS BRIGHT, BURNS OUT",
+        "note": "Fearsome strength ({STR} STR) in a body that cannot take much punishment ({CON} CON): hit first, hit hard, hit fast."
+      },
+      {
+        "top": "STR",
+        "low": "LCK",
+        "class": "warrior",
+        "label": "Doomed Veteran",
+        "verdictTag": "STRONG BUT STAR-CROSSED",
+        "note": "Strong arm, rotten luck ({LCK} LCK): you have survived everything through sheer grit, and expect more of the same."
+      },
+      {
+        "top": "DEX",
+        "low": "STR",
+        "class": "rogue",
+        "label": "Slight Skulker",
+        "verdictTag": "LIGHT ON THEIR FEET",
+        "note": "Too slight for a straight fight ({STR} STR), too quick ({DEX} DEX) to ever be caught in one."
+      },
+      {
+        "top": "DEX",
+        "low": "CON",
+        "class": "rogue",
+        "label": "Glass-jawed Assassin",
+        "verdictTag": "ONE STRIKE, THEN GONE",
+        "note": "Deadly quick ({DEX} DEX) but fragile ({CON} CON): you must win before anyone lands a hit."
+      },
+      {
+        "top": "DEX",
+        "low": "INT",
+        "class": "rogue",
+        "label": "Reckless Burglar",
+        "verdictTag": "ACT FIRST, PLAN NEVER",
+        "note": "Nimble fingers ({DEX} DEX) and no plan ({INT} INT): somehow it keeps working."
+      },
+      {
+        "top": "DEX",
+        "low": "LCK",
+        "class": "rogue",
+        "label": "Unlucky Pickpocket",
+        "verdictTag": "SKILL WITHOUT FORTUNE",
+        "note": "Skilled hands ({DEX} DEX), terrible timing ({LCK} LCK): the one guard you didn't see is always watching."
+      },
+      {
+        "top": "CON",
+        "low": "STR",
+        "class": "cleric",
+        "label": "Gentle Healer",
+        "verdictTag": "ENDURING, NOT AGGRESSIVE"
+      },
+      {
+        "top": "CON",
+        "low": "INT",
+        "class": "cleric",
+        "label": "Simple Faithful",
+        "verdictTag": "UNSHAKEABLE FAITH",
+        "note": "Plain of thought ({INT} INT) but impossible to break ({CON} CON): your faith is the one thing you never doubt."
+      },
+      {
+        "top": "CON",
+        "low": "DEX",
+        "class": "paladin",
+        "label": "Plodding Guardian",
+        "verdictTag": "SLOW BUT UNBREAKABLE",
+        "note": "You cannot dodge ({DEX} DEX), so you stand and endure ({CON} CON), and bear consecrated plate while doing it."
+      },
+      {
+        "top": "CON",
+        "low": "LCK",
+        "class": "druid",
+        "label": "Weary Hermit",
+        "verdictTag": "SURVIVOR OF HARD YEARS",
+        "note": "Fortune never favoured you ({LCK} LCK), but the wilds taught you to endure ({CON} CON)."
+      },
+      {
+        "top": "INT",
+        "low": "STR",
+        "class": "wizard",
+        "label": "Frail Scholar",
+        "verdictTag": "MIND OVER MATTER",
+        "note": "A great mind ({INT} INT) in a weak body ({STR} STR): you carry books, not weapons."
+      },
+      {
+        "top": "INT",
+        "low": "CON",
+        "class": "wizard",
+        "label": "Brittle Savant",
+        "verdictTag": "BRILLIANT AND BREAKABLE",
+        "note": "Brilliant ({INT} INT), but one stray blow ({CON} CON) could end the research."
+      },
+      {
+        "top": "INT",
+        "low": "DEX",
+        "class": "wizard",
+        "label": "Clumsy Sage",
+        "verdictTag": "ABSENT-MINDED GENIUS",
+        "note": "You can cast the spell, but you will trip on the stairs ({DEX} DEX) on the way to the tower."
+      },
+      {
+        "top": "INT",
+        "low": "LCK",
+        "class": "wizard",
+        "label": "Cursed Savant",
+        "verdictTag": "SMART, BUT STAR-CROSSED",
+        "note": "Every theory is sound ({INT} INT) and every experiment goes wrong ({LCK} LCK)."
+      },
+      {
+        "top": "LCK",
+        "low": "STR",
+        "class": "bard",
+        "label": "Silver-tongued Weakling",
+        "verdictTag": "TALKS THEIR WAY OUT",
+        "note": "Fortunate ({LCK} LCK) but feeble ({STR} STR): you win fights by avoiding them."
+      },
+      {
+        "top": "LCK",
+        "low": "CON",
+        "class": "bard",
+        "label": "Fragile Charmer",
+        "verdictTag": "LUCKY, NOT TOUGH",
+        "note": "Fortune follows you ({LCK} LCK), because one real wound ({CON} CON) would be enough."
+      },
+      {
+        "top": "LCK",
+        "low": "DEX",
+        "class": "bard",
+        "label": "Clumsy Charmer",
+        "verdictTag": "LANDS ON THEIR FEET (OFTEN)",
+        "note": "You trip, you stumble ({DEX} DEX), and somehow it always works out ({LCK} LCK)."
+      },
+      {
+        "top": "LCK",
+        "low": "INT",
+        "class": "jester",
+        "label": "Fortunate Fool",
+        "verdictTag": "FOOL'S LUCK",
+        "note": "Wits are not your strong suit ({INT} INT), but fortune ({LCK} LCK) has decided you are its favourite fool."
+      },
+      {
+        "top": "STR",
+        "second": "CON",
+        "low": "INT",
+        "class": "barbarian",
+        "label": "Mountain of Muscle",
+        "verdictTag": "ALL BRAWN, NO BRAIN"
+      },
+      {
+        "top": "STR",
+        "second": "CON",
+        "low": "DEX",
+        "class": "paladin",
+        "label": "Iron Wall",
+        "verdictTag": "ARMOURED BULWARK"
+      },
+      {
+        "top": "STR",
+        "second": "DEX",
+        "low": "INT",
+        "class": "swashbuckler",
+        "label": "Reckless Duelist",
+        "verdictTag": "ALL GUTS, NO PLAN"
+      },
+      {
+        "top": "STR",
+        "second": "LCK",
+        "low": "INT",
+        "class": "warrior",
+        "label": "Dumb-luck Mercenary",
+        "verdictTag": "STRONG AND LUCKY, NOT CLEVER"
+      },
+      {
+        "top": "DEX",
+        "second": "STR",
+        "low": "INT",
+        "class": "ranger",
+        "label": "Instinctive Hunter",
+        "verdictTag": "ACTS ON INSTINCT"
+      },
+      {
+        "top": "DEX",
+        "second": "CON",
+        "low": "INT",
+        "class": "monk",
+        "label": "Quiet-minded Fighter",
+        "verdictTag": "BODY ABOVE ALL"
+      },
+      {
+        "top": "DEX",
+        "second": "INT",
+        "low": "STR",
+        "class": "rogue",
+        "label": "Frail Spymaster",
+        "verdictTag": "BRAINS AND SHADOWS"
+      },
+      {
+        "top": "INT",
+        "second": "CON",
+        "low": "STR",
+        "class": "cleric",
+        "label": "Bookish Healer",
+        "verdictTag": "LEARNED & PATIENT"
+      },
+      {
+        "top": "INT",
+        "second": "DEX",
+        "low": "STR",
+        "class": "wizard",
+        "label": "Nimble Trickster",
+        "verdictTag": "SLEIGHT OF SPELL"
+      },
+      {
+        "top": "LCK",
+        "second": "DEX",
+        "low": "STR",
+        "class": "rogue",
+        "label": "Smooth Con Artist",
+        "verdictTag": "CHARM OVER MUSCLE"
+      },
+      {
+        "top": "LCK",
+        "second": "INT",
+        "low": "CON",
+        "class": "sorcerer",
+        "label": "Volatile Prodigy",
+        "verdictTag": "POWER THAT CAN'T BE CONTROLLED"
+      }
     ]
   },
   "races": {
-    "_help": "The 15 kept dice (three per attribute) are added together; that total mod the number of races picks a row, so add or remove rows freely. Dropped dice do not affect race or character generation. nameStarts and nameEnds are joined at random to suggest a name.",
+    "_help": "Race is chosen from the rolled stats, not the dice total. Rules are checked top to bottom, most specific match wins, ties go to the earlier rule. 'low' = lowest stat, 'top' = highest stat, 'spreadMax' = highest minus lowest stat must be at most this. If nothing matches, 'default' is used. Ties for lowest stat: break in the order STR, DEX, CON, INT, LCK. nameStarts and nameEnds are joined at random to suggest a name.",
+    "mode": "stats",
+    "default": "Human",
+    "rules": [
+      {
+        "spreadMax": 3,
+        "race": "Human"
+      },
+      {
+        "low": "DEX",
+        "race": "Dwarf"
+      },
+      {
+        "low": "CON",
+        "race": "Elf"
+      },
+      {
+        "low": "INT",
+        "race": "Half-Orc"
+      },
+      {
+        "low": "STR",
+        "top": "INT",
+        "race": "Gnome"
+      },
+      {
+        "low": "STR",
+        "race": "Halfling"
+      },
+      {
+        "low": "LCK",
+        "top": "STR",
+        "race": "Dragonborn"
+      },
+      {
+        "low": "LCK",
+        "top": "CON",
+        "race": "Dragonborn"
+      },
+      {
+        "low": "LCK",
+        "race": "Tiefling"
+      }
+    ],
     "rows": [
       {
         "name": "Human",
         "trait": "Adaptable and ambitious. Learns any trade quickly.",
-        "nameStarts": ["Al", "Br", "Cor", "Dar", "Ed", "Mar", "Ser"],
-        "nameEnds": ["ric", "win", "la", "wen", "ton", "ia", "mund"]
+        "nameStarts": [
+          "Al",
+          "Br",
+          "Cor",
+          "Dar",
+          "Ed",
+          "Mar",
+          "Ser"
+        ],
+        "nameEnds": [
+          "ric",
+          "win",
+          "la",
+          "wen",
+          "ton",
+          "ia",
+          "mund"
+        ]
       },
       {
         "name": "Elf",
         "trait": "Long-lived and keen-eyed. Needs little sleep.",
-        "nameStarts": ["Ael", "Fae", "Ily", "Syl", "Thae", "Lor", "Eri"],
-        "nameEnds": ["rion", "thas", "wyn", "andel", "iel", "orin", "ara"]
+        "nameStarts": [
+          "Ael",
+          "Fae",
+          "Ily",
+          "Syl",
+          "Thae",
+          "Lor",
+          "Eri"
+        ],
+        "nameEnds": [
+          "rion",
+          "thas",
+          "wyn",
+          "andel",
+          "iel",
+          "orin",
+          "ara"
+        ]
       },
       {
         "name": "Dwarf",
         "trait": "Stout and stubborn. Reads stone like a book.",
-        "nameStarts": ["Bar", "Dur", "Gim", "Thor", "Bru", "Kaz", "Dor"],
-        "nameEnds": ["in", "grim", "dak", "li", "bek", "rum", "gar"]
+        "nameStarts": [
+          "Bar",
+          "Dur",
+          "Gim",
+          "Thor",
+          "Bru",
+          "Kaz",
+          "Dor"
+        ],
+        "nameEnds": [
+          "in",
+          "grim",
+          "dak",
+          "li",
+          "bek",
+          "rum",
+          "gar"
+        ]
       },
       {
         "name": "Halfling",
         "trait": "Small, lucky and hard to rattle.",
-        "nameStarts": ["Pip", "Mer", "Tob", "Rosa", "Fin", "Lily", "Bram"],
-        "nameEnds": ["pin", "ry", "by", "mund", "wick", "bottom", "foot"]
+        "nameStarts": [
+          "Pip",
+          "Mer",
+          "Tob",
+          "Rosa",
+          "Fin",
+          "Lily",
+          "Bram"
+        ],
+        "nameEnds": [
+          "pin",
+          "ry",
+          "by",
+          "mund",
+          "wick",
+          "bottom",
+          "foot"
+        ]
       },
       {
         "name": "Gnome",
         "trait": "Curious and inventive. Hums while working.",
-        "nameStarts": ["Nim", "Fiz", "Zan", "Bim", "Orr", "Wib", "Gee"],
-        "nameEnds": ["ble", "zle", "wick", "nip", "ko", "bus", "fig"]
+        "nameStarts": [
+          "Nim",
+          "Fiz",
+          "Zan",
+          "Bim",
+          "Orr",
+          "Wib",
+          "Gee"
+        ],
+        "nameEnds": [
+          "ble",
+          "zle",
+          "wick",
+          "nip",
+          "ko",
+          "bus",
+          "fig"
+        ]
       },
       {
         "name": "Half-Orc",
         "trait": "Fierce and enduring. Refuses to stay down.",
-        "nameStarts": ["Gru", "Ug", "Mor", "Shag", "Dra", "Kor", "Thok"],
-        "nameEnds": ["mash", "gar", "ka", "dush", "nak", "gol", "ruk"]
+        "nameStarts": [
+          "Gru",
+          "Ug",
+          "Mor",
+          "Shag",
+          "Dra",
+          "Kor",
+          "Thok"
+        ],
+        "nameEnds": [
+          "mash",
+          "gar",
+          "ka",
+          "dush",
+          "nak",
+          "gol",
+          "ruk"
+        ]
       },
       {
         "name": "Tiefling",
         "trait": "Marked by an infernal past. Unnerves crowds.",
-        "nameStarts": ["Mal", "Zeph", "Vex", "Rai", "Kal", "Mor", "Sera"],
-        "nameEnds": ["phas", "ira", "eth", "ius", "ora", "keth", "vael"]
+        "nameStarts": [
+          "Mal",
+          "Zeph",
+          "Vex",
+          "Rai",
+          "Kal",
+          "Mor",
+          "Sera"
+        ],
+        "nameEnds": [
+          "phas",
+          "ira",
+          "eth",
+          "ius",
+          "ora",
+          "keth",
+          "vael"
+        ]
       },
       {
         "name": "Dragonborn",
         "trait": "Scaled and proud. Carries a breath of ancestral fire.",
-        "nameStarts": ["Tor", "Kri", "Bal", "Ghe", "Daar", "Rhog", "Sor"],
-        "nameEnds": ["inn", "asar", "amon", "esh", "ivar", "ax", "akh"]
+        "nameStarts": [
+          "Tor",
+          "Kri",
+          "Bal",
+          "Ghe",
+          "Daar",
+          "Rhog",
+          "Sor"
+        ],
+        "nameEnds": [
+          "inn",
+          "asar",
+          "amon",
+          "esh",
+          "ivar",
+          "ax",
+          "akh"
+        ]
       }
     ]
   },
   "display": {
-    "_help": "Title shown on the calling screen. {race} {class} (lower case) {Class} (capitalised). Without a race the capitalised class is used. 'label' on a rule or pick row is the short snappy tag above the title. A rule with no 'class' is a tier: it supplies label and text, and the class comes from picks (add 'fateTokens' on it if it should override the class's).",
+    "_help": "Title shown on the calling screen. {race} {class} (lower case) {Class} (capitalised). Without a race the capitalised class is used. 'label' on a rule or pick row is the short snappy tag above the title.",
     "titleFormat": "{race} {Class}"
+  },
+  "statWords": {
+    "_help": "Adjectives by stat value, as [max, word]: the first band whose max is at least the value is used. Edit freely, but keep the last band at 18 or more.",
+    "STR": [
+      [
+        5,
+        "feeble"
+      ],
+      [
+        8,
+        "weak"
+      ],
+      [
+        11,
+        "able-bodied"
+      ],
+      [
+        13,
+        "sturdy"
+      ],
+      [
+        15,
+        "strong"
+      ],
+      [
+        17,
+        "mighty"
+      ],
+      [
+        99,
+        "titanic"
+      ]
+    ],
+    "DEX": [
+      [
+        5,
+        "hopelessly clumsy"
+      ],
+      [
+        8,
+        "clumsy"
+      ],
+      [
+        11,
+        "steady-handed"
+      ],
+      [
+        13,
+        "nimble"
+      ],
+      [
+        15,
+        "agile"
+      ],
+      [
+        17,
+        "lightning-quick"
+      ],
+      [
+        99,
+        "impossibly swift"
+      ]
+    ],
+    "CON": [
+      [
+        5,
+        "sickly"
+      ],
+      [
+        8,
+        "frail"
+      ],
+      [
+        11,
+        "fair of health"
+      ],
+      [
+        13,
+        "hardy"
+      ],
+      [
+        15,
+        "tough"
+      ],
+      [
+        17,
+        "ironclad"
+      ],
+      [
+        99,
+        "all but unkillable"
+      ]
+    ],
+    "INT": [
+      [
+        5,
+        "dim-witted"
+      ],
+      [
+        8,
+        "slow"
+      ],
+      [
+        11,
+        "level-headed"
+      ],
+      [
+        13,
+        "sharp"
+      ],
+      [
+        15,
+        "brilliant"
+      ],
+      [
+        17,
+        "visionary"
+      ],
+      [
+        99,
+        "prodigious"
+      ]
+    ],
+    "LCK": [
+      [
+        5,
+        "cursed"
+      ],
+      [
+        8,
+        "unlucky"
+      ],
+      [
+        11,
+        "of middling fortune"
+      ],
+      [
+        13,
+        "fortunate"
+      ],
+      [
+        15,
+        "charmed"
+      ],
+      [
+        17,
+        "blessed"
+      ],
+      [
+        99,
+        "touched by fate"
+      ]
+    ]
+  },
+  "phrases": {
+    "_help": "{lowClause} is added only when the lowest stat is at or below max; text may use {lowAdj}.",
+    "lowClause": {
+      "max": 8,
+      "text": ", though {lowAdj}"
+    }
   }
 }

@@ -699,9 +699,6 @@ export const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacte
             {/* Header Banner */}
             <div className="border-b border-amber-900/60 pb-3 flex items-start justify-between gap-2 sm:gap-4">
               <div className="min-w-0 flex-1">
-                <span className="px-2.5 py-0.5 rounded text-[11px] font-mono font-bold uppercase bg-amber-950 border border-amber-600 text-amber-300">
-                  {destinyDiagnosis.label}
-                </span>
                 <h3 className="text-xl sm:text-3xl font-serif font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-amber-400 to-amber-200 mt-1 leading-tight">
                   {destinyDiagnosis.title}
                 </h3>
