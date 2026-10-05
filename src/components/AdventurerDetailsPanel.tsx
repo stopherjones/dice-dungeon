@@ -332,25 +332,6 @@ export const AdventurerDetailsPanel: React.FC<AdventurerDetailsPanelProps> = ({
           </div>
         )}
       </div>
-
-      {/* Bottom Navigation Buttons to Adjacent Panels */}
-      <div className="flex items-center justify-between gap-3 text-xs font-serif pt-1">
-        <button
-          onClick={onGoToBackpack}
-          className="flex-1 py-2 px-3 bg-[#241a12] hover:bg-[#382618] border border-[#6b4c2b] text-amber-200 rounded-lg flex items-center justify-center gap-2 transition-colors cursor-pointer shadow"
-        >
-          <ChevronLeft className="w-4 h-4 text-amber-400" />
-          <span>Swipe Left for Backpack & Equipment</span>
-        </button>
-
-        <button
-          onClick={onGoToMap}
-          className="flex-1 py-2 px-3 bg-[#241a12] hover:bg-[#382618] border border-[#6b4c2b] text-amber-200 rounded-lg flex items-center justify-center gap-2 transition-colors cursor-pointer shadow"
-        >
-          <span>Swipe Right for Dungeon Map & Chambers</span>
-          <ChevronRight className="w-4 h-4 text-amber-400" />
-        </button>
-      </div>
     </div>
   );
 };

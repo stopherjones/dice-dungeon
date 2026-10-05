@@ -5,26 +5,7 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import {
-  X,
-  MapPin,
-  Heart,
-  Sparkles,
-  Shield,
-  Coins,
-  Flame,
-  Key,
-  Skull,
-  AlertTriangle,
-  Package,
-  Store,
-  Tent,
-  Sun,
-  Crown,
-  HelpCircle,
-  Footprints,
-  Maximize2,
   ChevronLeft,
-  Sword,
 } from 'lucide-react';
 import {
   CombatState,
@@ -167,19 +148,6 @@ export const RoomModal: React.FC<RoomModalProps> = ({
   const hasMonster = room.monster && room.monster.hp > 0;
   const hasTrap = room.trap && !room.trap.disarmed && !room.trap.triggered;
   const hasChest = room.chest && !room.chest.isOpened;
-
-  const getRoomHeaderIcon = () => {
-    if (room.isBossRoom) return <Crown className="w-5 h-5 text-amber-400 animate-pulse" />;
-    if (hasMonster || combat) return <Skull className="w-5 h-5 text-red-400 animate-bounce" />;
-    if (hasTrap) return <AlertTriangle className="w-5 h-5 text-yellow-400" />;
-    if (hasChest) return <Package className="w-5 h-5 text-amber-400" />;
-    if (room.type === 'MERCHANT') return <Store className="w-5 h-5 text-emerald-400" />;
-    if (room.type === 'CAMPFIRE') return <Tent className="w-5 h-5 text-amber-400" />;
-    if (room.type === 'SHRINE') return <Sun className="w-5 h-5 text-cyan-400" />;
-    if (room.type === 'SECRET') return <HelpCircle className="w-5 h-5 text-purple-400" />;
-    if (room.hasStairs) return <Footprints className="w-5 h-5 text-blue-400" />;
-    return <MapPin className="w-5 h-5 text-[#e5b967]" />;
-  };
 
   return (
     <div
@@ -329,96 +297,27 @@ export const RoomModal: React.FC<RoomModalProps> = ({
               </div>
             </div>
           ) : (
-            /* EXPLORATION HEADER (Non-Combat): Full Chamber Details + Hero Quick HUD + Return to Map */
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 animate-fadeIn">
-              {/* Chamber Title & Location */}
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-[#2d1c10] rounded-lg border border-[#6b4725] text-amber-300 shrink-0">
-                  {getRoomHeaderIcon()}
+            /* EXPLORATION HEADER (Non-Combat): Streamlined Room Title */
+            <div className="flex items-center justify-between gap-3 animate-fadeIn">
+              <div>
+                <h2 className="text-base sm:text-lg font-serif font-black text-[#f5e4c6] leading-tight">
+                  {room.title}
+                </h2>
+                <div className="flex items-center gap-2 mt-0.5 text-xs text-stone-400 font-serif">
+                  <span>Floor {floor.floorNumber}: {floor.floorName}</span>
+                  <span>•</span>
+                  <span className="capitalize text-amber-300/90 font-mono text-[11px]">
+                    {room.isBossRoom
+                      ? 'Floor Boss Chamber'
+                      : hasMonster
+                      ? 'Hostile Threat'
+                      : hasTrap
+                      ? 'Hazard Trap'
+                      : room.isCleared
+                      ? 'Cleared Chamber'
+                      : room.type.replace('_', ' ')}
+                  </span>
                 </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono text-xs bg-[#24150b] text-amber-400 px-2 py-0.5 rounded border border-[#523319] font-bold">
-                      Tile [{room.gridX + 1},{room.gridY + 1}]
-                    </span>
-                    <h2 className="text-base sm:text-lg font-serif font-black text-[#f5e4c6] leading-tight">
-                      {room.title}
-                    </h2>
-                  </div>
-                  <div className="flex items-center gap-2 mt-0.5 text-xs text-stone-400 font-serif">
-                    <span>Floor {floor.floorNumber}: {floor.floorName}</span>
-                    <span>•</span>
-                    <span className="capitalize text-amber-300/90 font-mono text-[11px]">
-                      {room.isBossRoom
-                        ? 'Floor Boss Chamber'
-                        : hasMonster
-                        ? 'Hostile Threat'
-                        : hasTrap
-                        ? 'Hazard Trap'
-                        : room.isCleared
-                        ? 'Cleared Chamber'
-                        : room.type.replace('_', ' ')}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Hero Quick HUD + Close Button */}
-              <div className="flex items-center justify-between md:justify-end gap-3 flex-wrap sm:flex-nowrap">
-                {/* Quick Stats Pill Strip */}
-                <div className="flex items-center gap-2 bg-[#24170d] px-3 py-1.5 rounded-lg border border-[#4d321b] text-xs font-mono">
-                  {/* HP */}
-                  <div className="flex items-center gap-1.5" title="Hero Health Points">
-                    <Heart className="w-3.5 h-3.5 text-red-500 fill-red-500/30" />
-                    <span className="font-bold text-red-300">
-                      {hero.currentHp}/{hero.maxHp}
-                    </span>
-                    <div className="w-12 h-2 bg-stone-950 rounded-full overflow-hidden border border-stone-800 hidden sm:block">
-                      <div
-                        className="h-full bg-gradient-to-r from-red-600 to-red-400 transition-all duration-300"
-                        style={{ width: `${hpPercent}%` }}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="w-px h-3.5 bg-stone-700 mx-1" />
-
-                  {/* Mana */}
-                  <div className="flex items-center gap-1.5" title="Hero Mana / Arcane Energy">
-                    <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
-                    <span className="font-bold text-cyan-300">
-                      {hero.currentMana}/{hero.maxMana}
-                    </span>
-                  </div>
-
-                  <div className="w-px h-3.5 bg-stone-700 mx-1" />
-
-                  {/* AC */}
-                  <div className="flex items-center gap-1" title="Armor Class">
-                    <Shield className="w-3.5 h-3.5 text-stone-300" />
-                    <span className="font-bold text-stone-200">{heroAc}</span>
-                  </div>
-
-                  <div className="w-px h-3.5 bg-stone-700 mx-1 hidden sm:block" />
-
-                  {/* Gold */}
-                  <div className="hidden sm:flex items-center gap-1 text-amber-300" title="Collected Gold">
-                    <Coins className="w-3.5 h-3.5 text-yellow-400" />
-                    <span>{hero.gold}</span>
-                  </div>
-                </div>
-
-                {/* Close / Return to Map Button */}
-                <button
-                  id="btn-close-room-modal"
-                  onClick={onClose}
-                  className="px-3.5 py-1.5 bg-[#3b2314] hover:bg-[#52331d] text-amber-200 hover:text-amber-100 border border-[#7a4e28] rounded-lg text-xs font-serif font-bold flex items-center gap-1.5 cursor-pointer shadow transition-all hover:scale-105 shrink-0"
-                  title="Close Chamber pop-up and return to Dungeon Map overview (Esc)"
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                  <span>Return to Map</span>
-                  <span className="text-[10px] text-stone-400 font-mono hidden sm:inline">(Esc)</span>
-                </button>
               </div>
             </div>
           )}
@@ -460,37 +359,40 @@ export const RoomModal: React.FC<RoomModalProps> = ({
           )}
         </div>
 
-        {/* Modal Footer Note & Bottom Return to Map Action */}
-        <div className="bg-[#140d08] border-t border-[#422c19] px-4 py-2.5 flex items-center justify-between text-xs font-serif text-stone-400 shrink-0">
-          <div className="flex items-center gap-2">
-            <span
-              className={`w-2 h-2 rounded-full ${
-                combat ? 'bg-red-500 animate-ping' : 'bg-emerald-500 animate-pulse'
-              }`}
-            />
-            <span className="text-stone-300">
-              {combat
-                ? `Combat in progress with ${combat.monster.name}. Round ${combat.turnNumber} (${
-                    combat.isHeroTurn ? 'Your Turn' : 'Enemy Turn'
-                  }).`
-                : hasMonster
-                ? 'Hostile beast blocking further passage through doors.'
-                : hasTrap
-                ? 'Active trap mechanism. Disarm or trigger to clear passage.'
-                : 'Chamber is secure. You may explore, search, or move through open corridors.'}
-            </span>
+        {/* Sticky Tabletop Footer matching other game views */}
+        {!combat ? (
+          <div className="shrink-0 z-40 w-full bg-[#160f09]/98 border-t-2 border-amber-800/80 shadow-[0_-12px_28px_rgba(0,0,0,0.95)] backdrop-blur-md px-3 sm:px-4 py-2 sm:py-2.5">
+            <div className="max-w-xl mx-auto flex flex-col gap-1.5">
+              <button
+                id="btn-footer-return-map-main"
+                onClick={onClose}
+                className="w-full py-2.5 px-4 bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 hover:from-yellow-300 text-stone-950 font-serif font-black rounded-lg shadow-xl text-sm sm:text-base cursor-pointer transition-all transform hover:scale-[1.01] active:scale-[0.99] border-2 border-yellow-200 flex items-center justify-center gap-2"
+              >
+                <ChevronLeft className="w-5 h-5 text-stone-950" />
+                <span>Return to Map</span>
+              </button>
+              <div className="flex items-center justify-center gap-2 text-[11px] text-stone-400 font-mono py-0.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block mr-1" />
+                <span>
+                  {hasMonster
+                    ? 'Hostile threat blocking passage'
+                    : hasTrap
+                    ? 'Active trap mechanism'
+                    : 'Chamber is secure • Click adjacent tiles or doors on map to explore'}
+                </span>
+              </div>
+            </div>
           </div>
-
-          {!combat && (
-            <button
-              id="btn-footer-return-map"
-              onClick={onClose}
-              className="text-[11px] text-amber-300/90 hover:text-amber-100 underline underline-offset-2 flex items-center gap-1 cursor-pointer transition-colors"
-            >
-              <span>Dungeon Map Overview ➔</span>
-            </button>
-          )}
-        </div>
+        ) : (
+          <div className="bg-[#140d08] border-t border-[#422c19] px-4 py-2 flex items-center justify-between text-xs font-serif text-stone-400 shrink-0">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-red-500 animate-ping" />
+              <span className="text-stone-300">
+                Combat in progress with {combat.monster.name}. Round {combat.turnNumber} ({combat.isHeroTurn ? 'Your Turn' : 'Enemy Turn'}).
+              </span>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

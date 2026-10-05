@@ -28,15 +28,15 @@ export interface RollableTable<T = any> {
 }
 
 // ==========================================
-// 1. CHARACTER CLASS / ARCHETYPE TABLE (1d6)
+// 1. CHARACTER CLASS / ARCHETYPE TABLE (1d8)
 // ==========================================
 export const CHARACTER_CLASS_TABLE: RollableTable<HeroClassId> = {
   id: 'character_class_table',
   title: 'Character Archetype Table',
-  diceFormula: '1d6',
-  diceSides: 6,
+  diceFormula: '1d8',
+  diceSides: 8,
   diceCount: 1,
-  description: 'Roll a six-sided die to determine your adventuring class and destiny.',
+  description: 'Roll an eight-sided die to determine your adventuring class and destiny.',
   rows: [
     {
       minRoll: 1,
@@ -103,6 +103,28 @@ export const CHARACTER_CLASS_TABLE: RollableTable<HeroClassId> = {
       icon: 'Target',
       badge: 'Primary: DEX / STR',
       data: 'ranger',
+    },
+    {
+      minRoll: 7,
+      maxRoll: 7,
+      id: 'hero',
+      name: 'Hero',
+      subtitle: 'Champion of Destiny',
+      description: 'Blessed with exceptional attributes across the board. An all-rounder powerhouse destined for glory.',
+      icon: 'Crown',
+      badge: 'Sum ≥ 68 / All-Rounder',
+      data: 'hero',
+    },
+    {
+      minRoll: 8,
+      maxRoll: 8,
+      id: 'jester',
+      name: 'Jester',
+      subtitle: 'The Unlikely Fool',
+      description: 'Wholly weak attribute rolls compensated by sheer audacity, 4 Fate Tokens, and ridiculous luck.',
+      icon: 'Sparkles',
+      badge: 'Sum ≤ 53 / 4 Fate Tokens',
+      data: 'jester',
     },
   ],
 };

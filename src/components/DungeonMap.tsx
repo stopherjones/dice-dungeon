@@ -385,64 +385,9 @@ export const DungeonMap: React.FC<DungeonMapProps> = ({
       id="dungeon-map-container"
       className="bg-[#241a12] border-2 border-[#735438] rounded-xl p-3.5 text-stone-200 shadow-2xl relative"
     >
-      {/* Burgle Bros Map Header */}
-      <div className="flex items-center justify-between border-b border-[#4d3723] pb-2.5 mb-3">
-        <div className="flex items-center gap-2">
-          <div className="p-1 bg-[#3a2717] rounded border border-[#6b4724] text-amber-400">
-            <Compass className="w-4 h-4" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2 font-serif text-xs font-bold text-[#e5b967] tracking-wider uppercase">
-              <span>Floor {floor.floorNumber} — 4x4 Floor Grid</span>
-            </div>
-            <span className="text-[10px] text-stone-400 font-mono">
-              16 Room Tiles ({revealedCount} revealed, {hiddenCount} hidden)
-            </span>
-          </div>
-        </div>
-
-        {/* Quick Scout Tools & Actions */}
-        <div className="flex flex-wrap items-center gap-1.5">
-          <div
-            className="hidden xl:flex items-center gap-1 text-[10px] font-serif text-amber-200/90 bg-[#26170d] px-2 py-1 rounded border border-[#6e3e18]"
-            title="Candidate locations where the Floor Guardian & Descent Stairs can spawn (outer perimeter & deep alcoves)"
-          >
-            <Crown className="w-3 h-3 text-amber-400" />
-            <span>8 Stairs Candidates</span>
-          </div>
-
-          {/* Torch Button */}
-          {hero.torches > 0 && (
-            <button
-              id="btn-use-torch-map"
-              onClick={() => {
-                if (currentMode === 'TORCH') {
-                  handleClearMode();
-                } else if (
-                  selectedRoom &&
-                  isSelectedAdjacent &&
-                  !selectedRoom.isRevealed &&
-                  (!wallToSelected || wallToSelected.isBroken)
-                ) {
-                  sounds.playDiceRoll();
-                  onUseTorch(selectedRoom.id);
-                } else {
-                  setLocalMapAction('TORCH');
-                  setAlertMessage(null);
-                }
-              }}
-              className={`px-2 py-1 rounded text-[11px] font-serif flex items-center gap-1 transition-all cursor-pointer shadow-sm border ${
-                currentMode === 'TORCH'
-                  ? 'bg-orange-900 border-orange-400 text-orange-100 ring-2 ring-orange-500 animate-pulse font-bold'
-                  : 'bg-[#442d17] hover:bg-[#5a3c1f] text-orange-200 border-[#855427]'
-              }`}
-              title="Click an adjacent unrevealed room (not blocked by a solid wall) to illuminate it (Uses 1 Torch)"
-            >
-              <Flame className="w-3.5 h-3.5 text-orange-400" />
-              <span>{currentMode === 'TORCH' ? 'Torch Mode ✕' : `Torch (${hero.torches})`}</span>
-            </button>
-          )}
-
+      {/* Quick Scout Tools & Actions (Special inventory tools) */}
+      {(hasClairvoyanceScroll || hasSpyglass || hasBreachingTool || isWearingEtherealRing || hasPhasingPotion) && (
+        <div className="flex flex-wrap items-center justify-end gap-1.5 pb-2 mb-2 border-b border-[#4d3723]">
           {/* Clairvoyance Scroll Button */}
           {hasClairvoyanceScroll && (
             <button
@@ -539,7 +484,7 @@ export const DungeonMap: React.FC<DungeonMapProps> = ({
             </button>
           )}
         </div>
-      </div>
+      )}
 
       {/* Alert Warning Toast if Wall Blocks Action */}
       {alertMessage && (
@@ -647,74 +592,6 @@ export const DungeonMap: React.FC<DungeonMapProps> = ({
           </button>
         </div>
       )}
-
-      {/* Active Chamber Location Bar & Action Status */}
-      {currentRoom && (() => {
-        const currentInfo = getRoomDisplayInfo(currentRoom);
-        const isCurrentPassed = isRoomPassedThrough(currentRoom);
-
-        return (
-          <div className="mb-2.5 p-2 bg-[#1b120a] border border-[#523820] rounded-lg flex items-center justify-between gap-2 shadow-sm">
-            <div className="flex items-center gap-2 overflow-hidden">
-              <span className={`w-2 h-2 rounded-full shrink-0 ${isCurrentPassed ? 'bg-emerald-400' : 'bg-amber-400 animate-ping'}`} />
-              <div className="text-xs font-serif truncate">
-                <span className="text-stone-400">Current Chamber: </span>
-                <strong className="text-amber-200 font-bold">{currentInfo.title}</strong>{' '}
-                <span className="text-stone-500 font-mono text-[10px]">
-                  [{currentRoom.gridX + 1},{currentRoom.gridY + 1}]
-                </span>
-              </div>
-            </div>
-
-            {/* Action buttons based on chamber completion state */}
-            {currentRoom.type === 'CAMPFIRE' ? (
-              <span className="text-[11px] font-serif text-amber-300 font-bold bg-[#26170d] px-2 py-0.5 rounded border border-[#5a3619]">
-                Entrance Sanctuary
-              </span>
-            ) : currentRoom.isBossRoom && currentRoom.isStairsUnlocked ? (
-              <button
-                id="btn-quick-descend"
-                onClick={() => {
-                  if (onDescendFloor) onDescendFloor();
-                }}
-                className="px-2.5 py-1 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-stone-950 font-serif font-black text-xs rounded-md shadow flex items-center gap-1 shrink-0 cursor-pointer active:scale-95 transition-all"
-                title="Descend to the next dungeon floor"
-              >
-                <ArrowDownCircle className="w-3.5 h-3.5 text-stone-950" />
-                <span>Descend Stairs ➔</span>
-              </button>
-            ) : currentRoom.type === 'MERCHANT' ? (
-              <button
-                id="btn-quick-open-chamber"
-                onClick={() => {
-                  if (onOpenCurrentRoom) onOpenCurrentRoom();
-                }}
-                className="px-2.5 py-1 bg-gradient-to-r from-emerald-700 to-emerald-800 hover:from-emerald-600 hover:to-emerald-700 text-emerald-100 font-serif font-bold text-xs rounded-md shadow flex items-center gap-1 shrink-0 cursor-pointer active:scale-95 transition-all"
-                title="Trade with Olaf the Merchant"
-              >
-                <Store className="w-3.5 h-3.5 text-emerald-300" />
-                <span>Trade with Merchant ➔</span>
-              </button>
-            ) : isCurrentPassed ? (
-              <span className="text-[11px] font-serif text-emerald-300 font-bold bg-[#142214] px-2.5 py-0.5 rounded border border-emerald-700/60 flex items-center gap-1">
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                <span>Chamber Cleared</span>
-              </span>
-            ) : (
-              <button
-                id="btn-quick-open-chamber"
-                onClick={() => {
-                  if (onOpenCurrentRoom) onOpenCurrentRoom();
-                }}
-                className="px-2.5 py-1 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-stone-950 font-serif font-black text-xs rounded-md shadow flex items-center gap-1 shrink-0 cursor-pointer active:scale-95 transition-all"
-                title="Open full-screen pop-up for current chamber"
-              >
-                <span>Enter Chamber ➔</span>
-              </button>
-            )}
-          </div>
-        );
-      })()}
 
       {/* 4x4 Burgle Bros Board with Interactive Tiles & Walls */}
       <div className="bg-[#170f09] p-3 rounded-lg border-2 border-[#422c19] relative overflow-hidden bg-[radial-gradient(#382414_1px,transparent_1px)] [background-size:14px_14px] flex justify-center">

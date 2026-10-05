@@ -24,6 +24,9 @@ interface LookupTableRollerProps<T> {
   autoRoll?: boolean;
   showContinueButton?: boolean;
   onContinue?: () => void;
+  hideHeaderButton?: boolean;
+  externalTrigger?: number;
+  onRollingStateChange?: (isRolling: boolean) => void;
 }
 
 export function LookupTableRoller<T>({
@@ -39,6 +42,9 @@ export function LookupTableRoller<T>({
   autoRoll = false,
   showContinueButton = false,
   onContinue,
+  hideHeaderButton = false,
+  externalTrigger,
+  onRollingStateChange,
 }: LookupTableRollerProps<T>) {
   const [currentRoll, setCurrentRoll] = useState<number | null>(initialRoll);
   const [rollResult, setRollResult] = useState<RollResult | null>(null);
@@ -56,10 +62,18 @@ export function LookupTableRoller<T>({
     }
   }, [initialRoll, table]);
 
+  // Handle external trigger
+  useEffect(() => {
+    if (externalTrigger && externalTrigger > 0) {
+      performRoll();
+    }
+  }, [externalTrigger]);
+
   // Handle rolling
   const performRoll = () => {
     if (isRolling) return;
     setIsRolling(true);
+    if (onRollingStateChange) onRollingStateChange(true);
     sounds.playDiceRoll();
 
     // Cycling animation
@@ -85,6 +99,7 @@ export function LookupTableRoller<T>({
       setSelectedRow(matchedRow);
       setHighlightedRowId(matchedRow.id);
       setIsRolling(false);
+      if (onRollingStateChange) onRollingStateChange(false);
       sounds.playLoot();
 
       onRollComplete({
@@ -132,40 +147,42 @@ export function LookupTableRoller<T>({
         </div>
 
         {/* Action Controls */}
-        <div className="flex items-center gap-2">
-          {currentRoll === null ? (
-            <button
-              onClick={performRoll}
-              disabled={isRolling}
-              className="px-4 py-2 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-stone-950 font-bold rounded-lg shadow-lg flex items-center gap-2 transition-all transform active:scale-95 disabled:opacity-50 text-sm cursor-pointer"
-            >
-              <Dices className={`w-4 h-4 ${isRolling ? 'animate-spin' : ''}`} />
-              {isRolling ? 'Rolling...' : `${actionButtonLabel} (${table.diceFormula})`}
-            </button>
-          ) : (
-            <div className="flex items-center gap-2">
-              {canReroll && rerollTokens > 0 && (
-                <button
-                  onClick={handleReroll}
-                  disabled={isRolling}
-                  className="px-3 py-1.5 bg-purple-950/80 hover:bg-purple-900 border border-purple-600/70 text-purple-200 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-all cursor-pointer"
-                >
-                  <RefreshCw className={`w-3.5 h-3.5 ${isRolling ? 'animate-spin' : ''}`} />
-                  Fate Reroll ({rerollTokens} left)
-                </button>
-              )}
-              {showContinueButton && onContinue && (
-                <button
-                  onClick={onContinue}
-                  className="px-4 py-1.5 bg-emerald-700 hover:bg-emerald-600 text-stone-950 font-bold text-xs rounded-lg shadow-md transition-all cursor-pointer flex items-center gap-1"
-                >
-                  <Check className="w-3.5 h-3.5" />
-                  Proceed
-                </button>
-              )}
-            </div>
-          )}
-        </div>
+        {!hideHeaderButton && (
+          <div className="flex items-center gap-2">
+            {currentRoll === null ? (
+              <button
+                onClick={performRoll}
+                disabled={isRolling}
+                className="px-4 py-2 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-stone-950 font-bold rounded-lg shadow-lg flex items-center gap-2 transition-all transform active:scale-95 disabled:opacity-50 text-sm cursor-pointer"
+              >
+                <Dices className={`w-4 h-4 ${isRolling ? 'animate-spin' : ''}`} />
+                {isRolling ? 'Rolling...' : `${actionButtonLabel} (${table.diceFormula})`}
+              </button>
+            ) : (
+              <div className="flex items-center gap-2">
+                {canReroll && rerollTokens > 0 && (
+                  <button
+                    onClick={handleReroll}
+                    disabled={isRolling}
+                    className="px-3 py-1.5 bg-purple-950/80 hover:bg-purple-900 border border-purple-600/70 text-purple-200 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-all cursor-pointer"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${isRolling ? 'animate-spin' : ''}`} />
+                    Fate Reroll ({rerollTokens} left)
+                  </button>
+                )}
+                {showContinueButton && onContinue && (
+                  <button
+                    onClick={onContinue}
+                    className="px-4 py-1.5 bg-emerald-700 hover:bg-emerald-600 text-stone-950 font-bold text-xs rounded-lg shadow-md transition-all cursor-pointer flex items-center gap-1"
+                  >
+                    <Check className="w-3.5 h-3.5" />
+                    Proceed
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Google-Style Rolling Die Display */}

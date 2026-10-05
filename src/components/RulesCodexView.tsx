@@ -47,6 +47,16 @@ export type RuleTab =
   | 'tables'
   | 'leaderboard';
 
+const TAB_ORDER: RuleTab[] = [
+  'dice',
+  'fate',
+  'dungeon',
+  'combat',
+  'loot_classes',
+  'tables',
+  'leaderboard',
+];
+
 interface RulesCodexViewProps {
   initialTab?: RuleTab;
   activeTab?: RuleTab;
@@ -54,7 +64,7 @@ interface RulesCodexViewProps {
 }
 
 const ALL_TABLES: { id: string; label: string; category: string; table: RollableTable<any> }[] = [
-  { id: 'classes', label: '1. Character Classes (1d6)', category: 'Hero Creation', table: CHARACTER_CLASS_TABLE },
+  { id: 'classes', label: '1. Character Classes (1d8)', category: 'Hero Creation', table: CHARACTER_CLASS_TABLE },
   { id: 'boons', label: '2. Heirloom Boons (1d6)', category: 'Hero Creation', table: STARTING_BOON_TABLE },
   { id: 'f1_rooms', label: '3. Catacomb Rooms F1 (1d20)', category: 'Exploration', table: ROOM_TABLE_FLOOR_1 },
   { id: 'f2_rooms', label: '4. Sunken Mines Rooms F2 (1d20)', category: 'Exploration', table: ROOM_TABLE_FLOOR_2 },
@@ -75,6 +85,17 @@ export const RulesCodexView: React.FC<RulesCodexViewProps> = ({
   const activeTab = controlledActiveTab ?? internalActiveTab;
   const [selectedTableId, setSelectedTableId] = useState<string>('f1_rooms');
 
+  // Mouse & Touch Drag Navigation between Tabs
+  const dragStartX = React.useRef<number | null>(null);
+  const dragStartY = React.useRef<number | null>(null);
+  const isDraggingTabContent = React.useRef(false);
+
+  // Tab bar click-and-drag scrolling
+  const tabBarRef = React.useRef<HTMLDivElement>(null);
+  const isTabBarMouseDown = React.useRef(false);
+  const tabBarStartX = React.useRef(0);
+  const tabBarScrollLeft = React.useRef(0);
+
   const handleSelectTab = (tab: RuleTab) => {
     if (onTabChange) {
       onTabChange(tab);
@@ -83,15 +104,86 @@ export const RulesCodexView: React.FC<RulesCodexViewProps> = ({
     }
   };
 
+  const handleDragStart = (clientX: number, clientY: number) => {
+    dragStartX.current = clientX;
+    dragStartY.current = clientY;
+    isDraggingTabContent.current = true;
+  };
+
+  const handleDragEnd = (clientX: number, clientY: number) => {
+    if (!isDraggingTabContent.current || dragStartX.current === null) return;
+    const deltaX = clientX - dragStartX.current;
+    const deltaY = clientY - (dragStartY.current || clientY);
+    isDraggingTabContent.current = false;
+    dragStartX.current = null;
+    dragStartY.current = null;
+
+    // Detect horizontal drag threshold (> 45px)
+    if (Math.abs(deltaX) > 45 && Math.abs(deltaX) > Math.abs(deltaY) * 1.2) {
+      const currentIndex = TAB_ORDER.indexOf(activeTab);
+      if (deltaX < 0) {
+        // Dragged left -> switch to next tab
+        if (currentIndex < TAB_ORDER.length - 1) {
+          handleSelectTab(TAB_ORDER[currentIndex + 1]);
+        }
+      } else {
+        // Dragged right -> switch to previous tab
+        if (currentIndex > 0) {
+          handleSelectTab(TAB_ORDER[currentIndex - 1]);
+        }
+      }
+    }
+  };
+
+  const handleTabMouseDown = (e: React.MouseEvent) => {
+    if (!tabBarRef.current) return;
+    isTabBarMouseDown.current = true;
+    tabBarStartX.current = e.pageX - tabBarRef.current.offsetLeft;
+    tabBarScrollLeft.current = tabBarRef.current.scrollLeft;
+  };
+
+  const handleTabMouseMove = (e: React.MouseEvent) => {
+    if (!isTabBarMouseDown.current || !tabBarRef.current) return;
+    e.preventDefault();
+    const x = e.pageX - tabBarRef.current.offsetLeft;
+    const walk = (x - tabBarStartX.current) * 1.5;
+    tabBarRef.current.scrollLeft = tabBarScrollLeft.current - walk;
+  };
+
+  const handleTabMouseUp = () => {
+    isTabBarMouseDown.current = false;
+  };
+
   const currentTableEntry =
     ALL_TABLES.find((t) => t.id === selectedTableId) || ALL_TABLES[0];
 
   const scores = getHallOfFame();
 
   return (
-    <div className="flex flex-col flex-1 w-full gap-3 text-stone-200">
-      {/* Scrollable Horizontal Tab Navigation */}
-      <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto pb-1.5 border-b border-[#4d3723] shrink-0 no-scrollbar">
+    <div
+      className="flex flex-col flex-1 w-full gap-3 text-stone-200 select-none"
+      onMouseDown={(e) => {
+        const target = e.target as HTMLElement;
+        if (target.closest('button, select, input, a, [data-no-tab-drag]')) return;
+        handleDragStart(e.clientX, e.clientY);
+      }}
+      onMouseUp={(e) => handleDragEnd(e.clientX, e.clientY)}
+      onTouchStart={(e) => handleDragStart(e.touches[0].clientX, e.touches[0].clientY)}
+      onTouchEnd={(e) => {
+        if (e.changedTouches.length > 0) {
+          handleDragEnd(e.changedTouches[0].clientX, e.changedTouches[0].clientY);
+        }
+      }}
+    >
+      {/* Scrollable Horizontal Tab Navigation (with mouse drag scrolling) */}
+      <div
+        ref={tabBarRef}
+        onMouseDown={handleTabMouseDown}
+        onMouseMove={handleTabMouseMove}
+        onMouseUp={handleTabMouseUp}
+        onMouseLeave={handleTabMouseUp}
+        className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto pb-1.5 border-b border-[#4d3723] shrink-0 no-scrollbar cursor-grab active:cursor-grabbing"
+      >
         <button
           id="tab-rule-dice"
           onClick={() => handleSelectTab('dice')}
@@ -630,6 +722,19 @@ export const RulesCodexView: React.FC<RulesCodexViewProps> = ({
             </div>
           </div>
         )}
+      </div>
+
+      {/* Open-Source Attribution Footer (Moved from global page footer) */}
+      <div className="text-center text-xs text-stone-400 font-mono py-3.5 border-t border-[#4d3723]/60 mt-3 shrink-0">
+        Open-source personal web project built by me, Chris Jones (stopherjones). For more information, see{' '}
+        <a
+          href="https://stopherjones.github.io/about.html"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-amber-400 hover:text-amber-300 underline underline-offset-2 transition-colors font-bold"
+        >
+          About Me
+        </a>
       </div>
     </div>
   );

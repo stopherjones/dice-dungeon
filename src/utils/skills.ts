@@ -255,6 +255,84 @@ export function getHeroSkillsForLevel(classId: string, level: number): HeroSkill
         },
       ];
 
+    case 'hero':
+      return [
+        {
+          id: 'valiant_strike',
+          name: 'Valiant Strike',
+          description: `Devastating martial sword blow empowered by heroics (Rolls ${lvl === 1 ? '1d10+STR' : lvl === 2 ? '2d8+STR' : lvl === 3 ? '2d10+STR' : lvl === 4 ? '3d8+STR' : '3d10+STR'} damage).`,
+          manaCost: 5,
+          energyCost: 5,
+          cooldownTurns: 1,
+          type: 'attack',
+          diceFormula: lvl === 1 ? '1d10+STR' : lvl === 2 ? '2d8+STR' : lvl === 3 ? '2d10+STR' : lvl === 4 ? '3d8+STR' : '3d10+STR',
+          icon: 'Sword',
+          level: lvl,
+        },
+        {
+          id: 'heroic_resolve',
+          name: 'Heroic Resolve',
+          description: `Steel heart and divine will, granting +${3 + lvl} AC and recovering ${lvl === 1 ? '1d8+CON' : lvl === 2 ? '2d6+CON' : lvl === 3 ? '2d8+CON' : '3d8+CON'} Hit Points.`,
+          manaCost: 5,
+          energyCost: 5,
+          cooldownTurns: 3,
+          type: 'heal',
+          diceFormula: lvl === 1 ? '1d8+CON' : lvl === 2 ? '2d6+CON' : lvl === 3 ? '2d8+CON' : '3d8+CON',
+          icon: 'Heart',
+          level: lvl,
+        },
+        {
+          id: 'inspiring_rally',
+          name: 'Rallying Cry',
+          description: `Sound a heroic war cry, granting +${2 + lvl} Attack Bonus and boosting critical chance for 3 turns.`,
+          manaCost: 6,
+          energyCost: 6,
+          cooldownTurns: 3,
+          type: 'buff',
+          icon: 'Crown',
+          level: lvl,
+        },
+      ];
+
+    case 'jester':
+      return [
+        {
+          id: 'mocking_rhyme',
+          name: 'Mocking Rhyme',
+          description: `Spew scathing satirical limericks that damage enemy morale (Rolls ${lvl === 1 ? '1d6+LCK' : lvl === 2 ? '1d8+LCK' : lvl === 3 ? '2d6+LCK' : '2d8+LCK'} damage).`,
+          manaCost: 4,
+          energyCost: 4,
+          cooldownTurns: 1,
+          type: 'attack',
+          diceFormula: lvl === 1 ? '1d6+LCK' : lvl === 2 ? '1d8+LCK' : lvl === 3 ? '2d6+LCK' : '2d8+LCK',
+          icon: 'Sparkles',
+          level: lvl,
+        },
+        {
+          id: 'pratfall',
+          name: 'Tumble & Pratfall',
+          description: `Clumsily slip on an invisible peel, dodging blows (${Math.min(95, 75 + lvl * 5)}% Evasion) and gaining +${2 + lvl} Luck for 2 turns.`,
+          manaCost: 5,
+          energyCost: 5,
+          cooldownTurns: 3,
+          type: 'buff',
+          icon: 'Footprints',
+          level: lvl,
+        },
+        {
+          id: 'dumb_luck',
+          name: 'Dumb Luck Strike',
+          description: `Blindly swing your bells into the fray (Rolls unpredictable 1d20+${lvl - 1} chaotic damage!).`,
+          manaCost: 6,
+          energyCost: 6,
+          cooldownTurns: 2,
+          type: 'attack',
+          diceFormula: lvl === 1 ? '1d20' : `1d20+${lvl - 1}`,
+          icon: 'Dices',
+          level: lvl,
+        },
+      ];
+
     default:
       return [];
   }

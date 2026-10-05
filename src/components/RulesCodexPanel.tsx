@@ -51,17 +51,6 @@ export const RulesCodexPanel: React.FC<RulesCodexPanelProps> = ({
           onTabChange={onTabChange}
         />
       </div>
-
-      {/* Bottom Navigation Cue */}
-      <div className="flex items-center justify-start text-xs font-serif pt-1">
-        <button
-          onClick={onGoToMap}
-          className="py-2 px-3 bg-[#241a12] hover:bg-[#382618] border border-[#6b4c2b] text-amber-200 rounded-lg flex items-center gap-2 transition-colors cursor-pointer shadow"
-        >
-          <ChevronLeft className="w-4 h-4 text-amber-400" />
-          <span>Swipe Left for Dungeon Map</span>
-        </button>
-      </div>
     </div>
   );
 };

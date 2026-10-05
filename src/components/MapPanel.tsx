@@ -5,7 +5,6 @@
 
 import React from 'react';
 import {
-  Compass,
   ChevronLeft,
   ChevronRight,
   Tent,
@@ -13,6 +12,7 @@ import {
   Store,
   CheckCircle2,
   Package,
+  Flame,
 } from 'lucide-react';
 import { DungeonFloor, DungeonRoom, GameItem, HeroCharacter } from '../types/game';
 import { DungeonMap } from './DungeonMap';
@@ -24,6 +24,7 @@ interface MapPanelProps {
   hero: HeroCharacter;
   activeMapAction?: 'TORCH' | 'CLAIRVOYANCE' | 'SPYGLASS' | 'SMASH_WALL' | 'PHASE_WALL' | null;
   onClearMapAction?: () => void;
+  onToggleMapAction?: (action: 'TORCH' | 'CLAIRVOYANCE' | 'SPYGLASS' | 'SMASH_WALL' | 'PHASE_WALL') => void;
   onSelectAdjacentRoom: (targetRoomId: string) => void;
   onSmashWall: (wallId: string, item: GameItem) => void;
   onPhaseThroughWall: (targetRoomId: string, item?: GameItem) => void;
@@ -43,6 +44,7 @@ export const MapPanel: React.FC<MapPanelProps> = ({
   hero,
   activeMapAction,
   onClearMapAction,
+  onToggleMapAction,
   onSelectAdjacentRoom,
   onSmashWall,
   onPhaseThroughWall,
@@ -59,26 +61,90 @@ export const MapPanel: React.FC<MapPanelProps> = ({
 
   return (
     <div className="w-full flex flex-col gap-3.5">
-      {/* Floor Overview Header Banner */}
-      <div className="bg-[#241a12] border-2 border-[#735438] rounded-xl p-3 sm:p-4 text-stone-200 shadow-xl">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-          <div className="flex items-center gap-2.5">
-            <div className="p-2 bg-[#171008] border border-amber-600/70 rounded-lg text-amber-300 shadow-inner">
-              <Compass className="w-5 h-5 text-amber-400" />
-            </div>
+      {/* Top Room & Status Banner (No Coordinates, Room Name on Row 1, Status & Torch on Row 2) */}
+      {currentRoom && (() => {
+        const currentInfo = getRoomDisplayInfo(currentRoom);
+        const isCurrentPassed = isRoomPassedThrough(currentRoom);
+
+        return (
+          <div className="bg-[#241a12] border-2 border-[#735438] rounded-xl p-3 sm:p-3.5 text-stone-200 shadow-xl flex flex-col gap-2.5">
+            {/* Row 1: Room Tile Name & Hint */}
             <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-base sm:text-lg font-serif font-black text-[#f5e4c6] leading-tight">
-                  Floor {floor.floorNumber}: {floor.floorName}
-                </h2>
-              </div>
-              <span className="text-[11px] font-serif text-stone-400 block">
+              <h2 className="text-base sm:text-lg font-serif font-black text-[#f5e4c6] leading-tight">
+                {currentInfo.title}
+              </h2>
+              <span className="text-[11px] font-serif text-stone-400 block mt-0.5">
                 Tap adjacent chambers or doors to explore the 4x4 dungeon grid
               </span>
             </div>
+
+            {/* Row 2: Status Element on Left + Torch Button on Right */}
+            <div className="flex flex-wrap items-center gap-2 pt-0.5">
+              {/* Room Status Element */}
+              {currentRoom.type === 'CAMPFIRE' ? (
+                <div className="flex items-center gap-1.5 text-xs text-amber-300 font-serif bg-[#1a120b] px-2.5 sm:px-3 py-1.5 rounded-lg border border-amber-700/60 shadow">
+                  <Tent className="w-4 h-4 text-amber-500 shrink-0" />
+                  <span className="font-bold text-amber-200 whitespace-nowrap">Entrance Sanctuary</span>
+                </div>
+              ) : currentRoom.isBossRoom && currentRoom.isStairsUnlocked ? (
+                <button
+                  id="btn-main-descend-stairs"
+                  onClick={onDescendFloor}
+                  className="px-3 sm:px-4 py-1.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 text-stone-950 font-serif font-black text-xs rounded-lg shadow-lg flex items-center gap-1.5 cursor-pointer transition-all active:scale-95 whitespace-nowrap"
+                >
+                  <ArrowDownCircle className="w-4 h-4 text-stone-950" />
+                  <span>Descend Floor {floor.floorNumber + 1} ➔</span>
+                </button>
+              ) : currentRoom.type === 'MERCHANT' ? (
+                <button
+                  id="btn-main-trade-merchant"
+                  onClick={onOpenCurrentRoom}
+                  className="px-3 sm:px-4 py-1.5 bg-gradient-to-r from-emerald-700 to-emerald-800 hover:from-emerald-600 text-emerald-100 font-serif font-bold text-xs rounded-lg shadow flex items-center gap-1.5 cursor-pointer transition-all active:scale-95 whitespace-nowrap"
+                >
+                  <Store className="w-4 h-4 text-emerald-300" />
+                  <span>Trade ➔</span>
+                </button>
+              ) : isCurrentPassed ? (
+                <div className="flex items-center gap-1.5 bg-[#172417] text-emerald-300 border border-emerald-700/60 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-serif font-bold shadow whitespace-nowrap">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span>Chamber Cleared & Secure</span>
+                </div>
+              ) : (
+                <button
+                  id="btn-main-open-chamber-modal"
+                  onClick={onOpenCurrentRoom}
+                  className="px-3 sm:px-4 py-1.5 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 text-stone-950 font-serif font-black text-xs rounded-lg shadow flex items-center gap-1.5 cursor-pointer transition-all active:scale-95 whitespace-nowrap"
+                >
+                  <span>Enter Chamber ➔</span>
+                </button>
+              )}
+
+              {/* Torch (x) Button moved right next to the status element */}
+              {hero.torches > 0 && (
+                <button
+                  id="btn-top-use-torch"
+                  onClick={() => {
+                    if (activeMapAction === 'TORCH') {
+                      if (onClearMapAction) onClearMapAction();
+                    } else if (onToggleMapAction) {
+                      onToggleMapAction('TORCH');
+                    }
+                  }}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-serif flex items-center gap-1.5 transition-all cursor-pointer shadow border ${
+                    activeMapAction === 'TORCH'
+                      ? 'bg-orange-900 border-orange-400 text-orange-100 ring-2 ring-orange-500 animate-pulse font-bold'
+                      : 'bg-[#3b2715] hover:bg-[#52371d] text-orange-200 border-[#7d4d23]'
+                  }`}
+                  title="Light a torch to reveal an adjacent unrevealed room (Uses 1 Torch)"
+                >
+                  <Flame className="w-3.5 h-3.5 text-orange-400" />
+                  <span>{activeMapAction === 'TORCH' ? 'Torch Mode ✕' : `Torch (${hero.torches})`}</span>
+                </button>
+              )}
+            </div>
           </div>
-        </div>
-      </div>
+        );
+      })()}
 
       {/* Interactive 4x4 Dungeon Map */}
       <DungeonMap
@@ -96,101 +162,6 @@ export const MapPanel: React.FC<MapPanelProps> = ({
         onOpenCurrentRoom={onOpenCurrentRoom}
         onDescendFloor={onDescendFloor}
       />
-
-      {/* Active Chamber Quick Action Card */}
-      {currentRoom && (() => {
-        const currentInfo = getRoomDisplayInfo(currentRoom);
-        const isCurrentPassed = isRoomPassedThrough(currentRoom);
-
-        return (
-          <div className="bg-[#241a12] border-2 border-[#735438] rounded-xl p-3.5 sm:p-4 text-stone-200 shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <span className="font-mono text-xs bg-[#19110a] text-amber-300 px-2 py-0.5 rounded border border-[#4d341f]">
-                  Chamber [{currentRoom.gridX + 1},{currentRoom.gridY + 1}]
-                </span>
-                <h3 className="font-serif font-bold text-base text-[#f5e4c6]">{currentInfo.title}</h3>
-              </div>
-              <p className="text-xs text-stone-300 font-serif line-clamp-2">
-                {currentInfo.description}
-              </p>
-            </div>
-
-            {currentRoom.type === 'CAMPFIRE' ? (
-              <div className="flex items-center gap-2 shrink-0">
-                <div className="text-[11px] text-amber-300 font-serif bg-[#1a120b] px-3 py-1.5 rounded-lg border border-amber-700/60 shadow flex items-center gap-2">
-                  <Tent className="w-4 h-4 text-amber-500 shrink-0" />
-                  <div>
-                    <span className="font-bold text-amber-200 block">Entrance Sanctuary</span>
-                    <span className="block text-[10px] text-amber-300/70">Restored on descent</span>
-                  </div>
-                </div>
-                <button
-                  id="btn-map-open-backpack"
-                  onClick={onGoToBackpack}
-                  className="py-2 px-3 bg-[#382617] hover:bg-[#4d3521] text-amber-200 border border-[#6b4c2b] rounded-lg text-xs font-serif font-bold flex items-center justify-center gap-1.5 cursor-pointer shadow transition-all hover:scale-105 active:scale-95"
-                  title="Switch to Backpack to eat rations or manage gear"
-                >
-                  <Package className="w-4 h-4 text-amber-300" />
-                  <span>Backpack ➔</span>
-                </button>
-              </div>
-            ) : currentRoom.isBossRoom && currentRoom.isStairsUnlocked ? (
-              <button
-                id="btn-main-descend-stairs"
-                onClick={onDescendFloor}
-                className="px-4 py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-stone-950 font-serif font-black text-xs rounded-lg shadow-lg flex items-center justify-center gap-2 cursor-pointer shrink-0 active:scale-95 transition-all"
-              >
-                <ArrowDownCircle className="w-4 h-4 text-stone-950" />
-                <span>Descend Stairs to Floor {floor.floorNumber + 1} ➔</span>
-              </button>
-            ) : currentRoom.type === 'MERCHANT' ? (
-              <button
-                id="btn-main-trade-merchant"
-                onClick={onOpenCurrentRoom}
-                className="px-4 py-2.5 bg-gradient-to-r from-emerald-700 to-emerald-800 hover:from-emerald-600 hover:to-emerald-700 text-emerald-100 font-serif font-bold text-xs rounded-lg shadow-lg flex items-center justify-center gap-2 cursor-pointer shrink-0 active:scale-95 transition-all"
-              >
-                <Store className="w-4 h-4 text-emerald-300" />
-                <span>Trade with Merchant ➔</span>
-              </button>
-            ) : isCurrentPassed ? (
-              <div className="flex items-center gap-2 bg-[#172417] text-emerald-300 border border-emerald-700/60 px-3.5 py-2 rounded-lg text-xs font-serif font-bold shrink-0 shadow">
-                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                <span>Chamber Cleared & Secure</span>
-              </div>
-            ) : (
-              <button
-                id="btn-main-open-chamber-modal"
-                onClick={onOpenCurrentRoom}
-                className="px-4 py-2.5 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-stone-950 font-serif font-black text-xs rounded-lg shadow-lg flex items-center justify-center gap-2 cursor-pointer shrink-0 active:scale-95 transition-all"
-              >
-                <span>Enter Chamber Pop-Up ➔</span>
-              </button>
-            )}
-          </div>
-        );
-      })()}
-
-      {/* Bottom Navigation Cue */}
-      <div className="flex items-center justify-between text-xs font-serif pt-1 gap-2">
-        <button
-          onClick={onGoToAdventurer}
-          className="py-2 px-3 bg-[#241a12] hover:bg-[#382618] border border-[#6b4c2b] text-amber-200 rounded-lg flex items-center gap-2 transition-colors cursor-pointer shadow"
-        >
-          <ChevronLeft className="w-4 h-4 text-amber-400" />
-          <span>Swipe Left for Adventurer Details</span>
-        </button>
-
-        {onGoToCodex && (
-          <button
-            onClick={onGoToCodex}
-            className="py-2 px-3 bg-[#241a12] hover:bg-[#382618] border border-[#6b4c2b] text-amber-200 rounded-lg flex items-center gap-2 transition-colors cursor-pointer shadow"
-          >
-            <span>Swipe Right for Rules Codex</span>
-            <ChevronRight className="w-4 h-4 text-amber-400" />
-          </button>
-        )}
-      </div>
     </div>
   );
 };

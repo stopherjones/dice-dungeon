@@ -13,7 +13,7 @@ export interface CharacterStats {
   LCK: number; // Luck (Critical chance, loot rolls, flee checks, event bonuses)
 }
 
-export type HeroClassId = 'warrior' | 'rogue' | 'wizard' | 'cleric' | 'paladin' | 'ranger';
+export type HeroClassId = 'warrior' | 'rogue' | 'wizard' | 'cleric' | 'paladin' | 'ranger' | 'hero' | 'jester';
 
 export interface ClassDefinition {
   id: HeroClassId;

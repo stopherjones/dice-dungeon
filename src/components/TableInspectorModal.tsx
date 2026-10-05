@@ -26,7 +26,7 @@ interface TableInspectorModalProps {
 }
 
 const ALL_TABLES: { id: string; label: string; category: string; table: RollableTable<any> }[] = [
-  { id: 'classes', label: '1. Character Classes (1d6)', category: 'Hero Creation', table: CHARACTER_CLASS_TABLE },
+  { id: 'classes', label: '1. Character Classes (1d8)', category: 'Hero Creation', table: CHARACTER_CLASS_TABLE },
   { id: 'boons', label: '2. Heirloom Boons (1d6)', category: 'Hero Creation', table: STARTING_BOON_TABLE },
   { id: 'f1_rooms', label: '3. Catacomb Rooms F1 (1d20)', category: 'Exploration', table: ROOM_TABLE_FLOOR_1 },
   { id: 'f2_rooms', label: '4. Sunken Mines Rooms F2 (1d20)', category: 'Exploration', table: ROOM_TABLE_FLOOR_2 },

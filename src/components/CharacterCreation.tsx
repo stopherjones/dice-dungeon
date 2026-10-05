@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Shield,
   Zap,
@@ -37,17 +37,11 @@ import { HERO_CLASSES } from '../data/classes';
 import { ITEMS_DATABASE } from '../data/items';
 import { syncHeroSupplies } from '../utils/inventory';
 import { getHeroSkillsForLevel } from '../utils/skills';
-import {
-  CHARACTER_CLASS_TABLE,
-  STARTING_BOON_TABLE,
-  StartingBoon,
-  TableRow,
-} from '../data/tables';
+import { STARTING_BOON_TABLE, StartingBoon, TableRow } from '../data/tables';
 import { LookupTableRoller } from './LookupTableRoller';
 import { roll4d6DropLowest, getStatModifier, RollResult } from '../utils/dice';
 import { sounds } from '../utils/audio';
-import { DieShape } from './DieShape';
-import { DiceVisualizer } from './DiceVisualizer';
+import { determineHeroClassFromStats, DestinyDiagnosis } from '../utils/destiny';
 
 const FANTASY_NAMES: Record<HeroClassId, string[]> = {
   warrior: ['Alden Ironbreaker', 'Garrick Stoneheart', 'Bram the Undaunted', 'Valerius of the Vanguard', 'Theron Bloodaxe'],
@@ -56,148 +50,323 @@ const FANTASY_NAMES: Record<HeroClassId, string[]> = {
   cleric: ['Brother Matthew', 'Elysia the Devout', 'Althea of the Dawn', 'Cedric Lightbringer', 'Gideon the Pure'],
   paladin: ['Sir Roland the Just', 'Morgana Ironwill', 'Lucian Sunshield', 'Lady Vivienne', 'Arthur Goldenheart'],
   ranger: ['Finnian Silverbow', 'Hawthorne Trailfinder', 'Sylvia Wildwood', 'Ronan Bowstrider', 'Talon Keeneye'],
+  hero: ['Sir Galahad the Brave', 'Kaelen Sunstride', 'Victoria the Undaunted', 'Alexander Starforged', 'Aurelia Crownbearer'],
+  jester: ['Pip the Fool', 'Fidget Merrybell', 'Boffo Motley', 'Barnaby the Clumsy', 'Joff the Ridiculous'],
 };
 
 interface CharacterCreationProps {
   onCharacterCreated: (hero: HeroCharacter) => void;
 }
 
-type CreationStep = 'CLASS_SELECT' | 'STATS_ROLL' | 'BOON_ROLL' | 'FINALIZE';
+type CreationStep = 'STATS_ROLL' | 'DESTINY_REVEAL' | 'BOON_ROLL' | 'FINALIZE';
 
 const STAT_ORDER: { key: StatType; label: string; desc: string }[] = [
-  { key: 'STR', label: 'Strength', desc: 'Melee weapon damage, physical checks & bash' },
+  { key: 'STR', label: 'Strength', desc: 'Melee weapon damage, physical checks & wall smash' },
   { key: 'DEX', label: 'Dexterity', desc: 'Agility, armor class bonus & trap disarm' },
   { key: 'CON', label: 'Constitution', desc: 'Health points, stamina & poison resilience' },
   { key: 'INT', label: 'Intelligence', desc: 'Arcane spell power, energy capacity & lore' },
   { key: 'LCK', label: 'Luck', desc: 'Critical strike chance & dungeon loot rolls' },
 ];
 
+/**
+ * Authentic Tabletop Pip Die Component - clean, no extra text
+ */
+const PipDie: React.FC<{
+  value: number;
+  isDropped?: boolean;
+  isRolling?: boolean;
+}> = ({ value, isDropped = false, isRolling = false }) => {
+  const getPips = (val: number) => {
+    switch (val) {
+      case 1:
+        return [{ cx: 50, cy: 50, color: '#dc2626', r: 12 }]; // Red center dot for 1
+      case 2:
+        return [
+          { cx: 28, cy: 28, color: '#1c1917', r: 8 },
+          { cx: 72, cy: 72, color: '#1c1917', r: 8 },
+        ];
+      case 3:
+        return [
+          { cx: 28, cy: 28, color: '#1c1917', r: 8 },
+          { cx: 50, cy: 50, color: '#1c1917', r: 8 },
+          { cx: 72, cy: 72, color: '#1c1917', r: 8 },
+        ];
+      case 4:
+        return [
+          { cx: 28, cy: 28, color: '#1c1917', r: 8 },
+          { cx: 72, cy: 28, color: '#1c1917', r: 8 },
+          { cx: 28, cy: 72, color: '#1c1917', r: 8 },
+          { cx: 72, cy: 72, color: '#1c1917', r: 8 },
+        ];
+      case 5:
+        return [
+          { cx: 28, cy: 28, color: '#1c1917', r: 8 },
+          { cx: 72, cy: 28, color: '#1c1917', r: 8 },
+          { cx: 50, cy: 50, color: '#1c1917', r: 8 },
+          { cx: 28, cy: 72, color: '#1c1917', r: 8 },
+          { cx: 72, cy: 72, color: '#1c1917', r: 8 },
+        ];
+      case 6:
+        return [
+          { cx: 28, cy: 24, color: '#1c1917', r: 8 },
+          { cx: 72, cy: 24, color: '#1c1917', r: 8 },
+          { cx: 28, cy: 50, color: '#1c1917', r: 8 },
+          { cx: 72, cy: 50, color: '#1c1917', r: 8 },
+          { cx: 28, cy: 76, color: '#1c1917', r: 8 },
+          { cx: 72, cy: 76, color: '#1c1917', r: 8 },
+        ];
+      default:
+        return [{ cx: 50, cy: 50, color: '#1c1917', r: 8 }];
+    }
+  };
+
+  const pips = getPips(Math.min(6, Math.max(1, value)));
+
+  return (
+    <div
+      className={`relative flex items-center justify-center transition-all ${
+        isDropped ? 'opacity-40 grayscale scale-90' : 'opacity-100 scale-100'
+      }`}
+    >
+      <div
+        className={`w-9 h-9 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-[#f5ebd7] border-2 border-[#543b24] shadow-md flex items-center justify-center relative overflow-hidden ${
+          isRolling ? 'animate-bounce' : ''
+        }`}
+      >
+        <svg viewBox="0 0 100 100" className="w-full h-full p-1 sm:p-1.5">
+          {pips.map((p, idx) => (
+            <circle
+              key={idx}
+              cx={p.cx}
+              cy={p.cy}
+              r={p.r}
+              fill={isDropped ? '#9e8975' : p.color === '#dc2626' ? '#b91c1c' : '#2b1b11'}
+            />
+          ))}
+        </svg>
+        {isDropped && (
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <div className="w-full h-0.5 bg-red-600 rotate-45 transform" />
+            <div className="w-full h-0.5 bg-red-600 -rotate-45 transform absolute" />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 export const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacterCreated }) => {
-  const [currentStep, setCurrentStep] = useState<CreationStep>('CLASS_SELECT');
-  const [selectedClassId, setSelectedClassId] = useState<HeroClassId>('warrior');
+  const [currentStep, setCurrentStep] = useState<CreationStep>('STATS_ROLL');
 
-  const selectedClass =
-    HERO_CLASSES.find((c) => c.id === selectedClassId) || HERO_CLASSES[0];
+  // Currently active attribute in the footer selector (starts on STR)
+  const [activeStatKey, setActiveStatKey] = useState<StatType>('STR');
 
-  // Stat rolling state (4d6 drop lowest + class archetype boost)
-  const [stats, setStats] = useState<CharacterStats>(() => ({ ...selectedClass.baseStats }));
+  // Rolled Stats (4d6 drop lowest)
+  const [stats, setStats] = useState<CharacterStats>({
+    STR: 10,
+    DEX: 10,
+    CON: 10,
+    INT: 10,
+    LCK: 10,
+  });
+
   const [rolledStatBreakdowns, setRolledStatBreakdowns] = useState<
-    Record<StatType, { rolls: number[]; dropped: number; subtotal: number; classBonus: number; total: number }>
+    Record<StatType, { rolls: number[]; dropped: number; subtotal: number; total: number; droppedIndex: number }>
   >({} as any);
+
+  // Dice rolling stages: 'idle' | 'tumbling' | 'landed' | 'dropped'
   const [isRollingCurrentStat, setIsRollingCurrentStat] = useState(false);
-  const [rollingStatKey, setRollingStatKey] = useState<StatType | null>(null);
-  const [hasRolledAllStats, setHasRolledAllStats] = useState(false);
+  const [rollStage, setRollStage] = useState<'idle' | 'tumbling' | 'landed' | 'dropped'>('idle');
+  const [animatedDiceValues, setAnimatedDiceValues] = useState<number[]>([3, 4, 5, 2]);
+  const [currentDroppedIndex, setCurrentDroppedIndex] = useState<number | null>(null);
+
+  const rollIntervalRef = useRef<number | null>(null);
+  const timer1Ref = useRef<number | null>(null);
+  const timer2Ref = useRef<number | null>(null);
+  const timer3Ref = useRef<number | null>(null);
+
+  // Assigned Destiny & Class
+  const [destinyDiagnosis, setDestinyDiagnosis] = useState<DestinyDiagnosis | null>(null);
+  const [selectedClassId, setSelectedClassId] = useState<HeroClassId>('warrior');
 
   // Boon table rolling state (1d6 table roll)
   const [rolledBoon, setRolledBoon] = useState<StartingBoon | null>(null);
   const [hasRolledBoon, setHasRolledBoon] = useState(false);
+  const [boonTriggerRoll, setBoonTriggerRoll] = useState(0);
+  const [isBoonRolling, setIsBoonRolling] = useState(false);
 
   // Character Name & Fate Tokens
   const [characterName, setCharacterName] = useState('Alden Ironbreaker');
   const [fateTokens, setFateTokens] = useState(1);
 
-  // Helper to choose class
-  const handleSelectClass = (classId: HeroClassId) => {
-    setSelectedClassId(classId);
-    sounds.playBlock();
-    setFateTokens(classId === 'rogue' ? 2 : 1);
+  const selectedClass =
+    HERO_CLASSES.find((c) => c.id === selectedClassId) || HERO_CLASSES[0];
 
-    const newClass = HERO_CLASSES.find((c) => c.id === classId) || HERO_CLASSES[0];
-    setStats({ ...newClass.baseStats });
-    setRolledStatBreakdowns({} as any);
-    setHasRolledAllStats(false);
-
-    const nameList = FANTASY_NAMES[classId] || FANTASY_NAMES.warrior;
-    setCharacterName(nameList[Math.floor(Math.random() * nameList.length)]);
+  const clearAllTimers = () => {
+    if (rollIntervalRef.current) {
+      clearInterval(rollIntervalRef.current);
+      rollIntervalRef.current = null;
+    }
+    if (timer1Ref.current) {
+      clearTimeout(timer1Ref.current);
+      timer1Ref.current = null;
+    }
+    if (timer2Ref.current) {
+      clearTimeout(timer2Ref.current);
+      timer2Ref.current = null;
+    }
+    if (timer3Ref.current) {
+      clearTimeout(timer3Ref.current);
+      timer3Ref.current = null;
+    }
   };
 
-  // Roll Single Stat (4d6 drop lowest + Class Boost)
+  useEffect(() => {
+    return () => {
+      clearAllTimers();
+    };
+  }, []);
+
+  // Auto-scroll active stat row into view so the user always sees the row being rolled
+  useEffect(() => {
+    if (currentStep !== 'STATS_ROLL') return;
+    const cardEl = document.getElementById(`stat-card-${activeStatKey}`);
+    if (cardEl) {
+      cardEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [activeStatKey, currentStep]);
+
+  // Roll Single Stat (4d6 drop lowest with sequenced animation stages)
   const handleRollSingleStat = (statKey: StatType, isFateReroll = false) => {
     if (isRollingCurrentStat) return;
     if (isFateReroll && fateTokens <= 0) return;
 
+    clearAllTimers();
+    setActiveStatKey(statKey);
     setIsRollingCurrentStat(true);
-    setRollingStatKey(statKey);
+    setRollStage('tumbling');
+    setCurrentDroppedIndex(null);
+
+    // Ensure the row being rolled is scrolled into view immediately
+    const cardEl = document.getElementById(`stat-card-${statKey}`);
+    if (cardEl) {
+      cardEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
     if (isFateReroll) {
       setFateTokens((tokens) => Math.max(0, tokens - 1));
     }
     sounds.playDiceRoll();
 
-    setTimeout(() => {
-      const rollRes = roll4d6DropLowest();
-      const rollsSorted = [...rollRes.rolls].sort((a, b) => a - b);
-      const droppedValue = rollsSorted[0];
-      const subtotal = rollRes.total;
-      const classBonus = selectedClass.statBonuses?.[statKey] || 0;
-      const finalTotal = subtotal + classBonus;
+    // 1. Rapid tumbling animation
+    rollIntervalRef.current = window.setInterval(() => {
+      setAnimatedDiceValues([
+        Math.floor(Math.random() * 6) + 1,
+        Math.floor(Math.random() * 6) + 1,
+        Math.floor(Math.random() * 6) + 1,
+        Math.floor(Math.random() * 6) + 1,
+      ]);
+    }, 45);
 
-      const newBreakdowns = {
-        ...rolledStatBreakdowns,
-        [statKey]: {
-          rolls: rollRes.rolls,
-          dropped: droppedValue,
-          subtotal,
-          classBonus,
-          total: finalTotal,
-        },
-      };
-      setRolledStatBreakdowns(newBreakdowns);
-
-      const newStats = {
-        ...stats,
-        [statKey]: finalTotal,
-      };
-      setStats(newStats);
-
-      setIsRollingCurrentStat(false);
-      setRollingStatKey(null);
-      sounds.playCoins();
-
-      // Check if all 5 stats are rolled
-      const allRolled = STAT_ORDER.every((s) => newBreakdowns[s.key] !== undefined);
-      if (allRolled) {
-        setHasRolledAllStats(true);
+    // 2. Landed stage: Tumbling stops, reveal 4 landed numbers clean (none crossed out yet)
+    timer1Ref.current = window.setTimeout(() => {
+      if (rollIntervalRef.current) {
+        clearInterval(rollIntervalRef.current);
+        rollIntervalRef.current = null;
       }
-    }, 450);
+
+      const rollRes = roll4d6DropLowest();
+      const rawRolls = [...rollRes.rolls];
+
+      // Identify lowest index
+      let lowestIdx = 0;
+      let lowestVal = rawRolls[0];
+      for (let i = 1; i < rawRolls.length; i++) {
+        if (rawRolls[i] < lowestVal) {
+          lowestVal = rawRolls[i];
+          lowestIdx = i;
+        }
+      }
+
+      setAnimatedDiceValues(rawRolls);
+      setRollStage('landed');
+
+      // 3. Dropped stage: Slight delay, then cross out the lowest die with red cross
+      timer2Ref.current = window.setTimeout(() => {
+        setRollStage('dropped');
+        setCurrentDroppedIndex(lowestIdx);
+        sounds.playBlock();
+
+        // 4. Settle stage: Slight delay, then reveal score and advance to next stat
+        timer3Ref.current = window.setTimeout(() => {
+          const finalTotal = rollRes.total;
+
+          const newBreakdowns = {
+            ...rolledStatBreakdowns,
+            [statKey]: {
+              rolls: rawRolls,
+              dropped: lowestVal,
+              subtotal: finalTotal,
+              total: finalTotal,
+              droppedIndex: lowestIdx,
+            },
+          };
+          setRolledStatBreakdowns(newBreakdowns);
+
+          const newStats = {
+            ...stats,
+            [statKey]: finalTotal,
+          };
+          setStats(newStats);
+
+          setIsRollingCurrentStat(false);
+          setRollStage('idle');
+          sounds.playCoins();
+
+          // Check if there is another unrolled stat
+          const nextUnrolled = STAT_ORDER.find(
+            (s) => s.key !== statKey && newBreakdowns[s.key] === undefined
+          );
+
+          const allRolled = STAT_ORDER.every((s) => newBreakdowns[s.key] !== undefined);
+
+          if (allRolled) {
+            sounds.playLevelUp();
+          } else if (nextUnrolled) {
+            setActiveStatKey(nextUnrolled.key);
+          }
+        }, 550);
+      }, 500);
+    }, 500);
   };
 
-  // Roll all remaining attributes in turn
-  const handleRollAllStatsInTurn = () => {
-    if (isRollingCurrentStat) return;
-    setIsRollingCurrentStat(true);
-    sounds.playDiceRoll();
+  // Reveal Destiny & Assigned Class based on rolled stats
+  const handleRevealDestiny = () => {
+    const diagnosis = determineHeroClassFromStats(stats);
+    setDestinyDiagnosis(diagnosis);
+    setSelectedClassId(diagnosis.classId);
+    setFateTokens(diagnosis.fateTokenCount);
 
-    const newBreakdowns: Record<StatType, { rolls: number[]; dropped: number; subtotal: number; classBonus: number; total: number }> = {
-      ...rolledStatBreakdowns,
-    };
-    const newStats: CharacterStats = { ...stats };
+    const nameList = FANTASY_NAMES[diagnosis.classId] || FANTASY_NAMES.warrior;
+    setCharacterName(nameList[Math.floor(Math.random() * nameList.length)]);
 
-    STAT_ORDER.forEach((item) => {
-      const rollRes = roll4d6DropLowest();
-      const rollsSorted = [...rollRes.rolls].sort((a, b) => a - b);
-      const droppedValue = rollsSorted[0];
-      const subtotal = rollRes.total;
-      const classBonus = selectedClass.statBonuses?.[item.key] || 0;
-      const finalTotal = subtotal + classBonus;
+    sounds.playLevelUp();
+    setCurrentStep('DESTINY_REVEAL');
+  };
 
-      newBreakdowns[item.key] = {
-        rolls: rollRes.rolls,
-        dropped: droppedValue,
-        subtotal,
-        classBonus,
-        total: finalTotal,
-      };
-      newStats[item.key] = finalTotal;
-    });
-
-    setTimeout(() => {
-      setRolledStatBreakdowns(newBreakdowns);
-      setStats(newStats);
-      setHasRolledAllStats(true);
-      setIsRollingCurrentStat(false);
-      setRollingStatKey(null);
-      sounds.playCoins();
-    }, 550);
+  // Reset and reroll all attributes from scratch
+  const handleRestartRolls = () => {
+    clearAllTimers();
+    sounds.playBlock();
+    setRolledStatBreakdowns({} as any);
+    setActiveStatKey('STR');
+    setDestinyDiagnosis(null);
+    setFateTokens(1);
+    setRollStage('idle');
+    setCurrentDroppedIndex(null);
+    setAnimatedDiceValues([3, 4, 5, 2]);
+    setIsRollingCurrentStat(false);
+    setCurrentStep('STATS_ROLL');
   };
 
   // Handle Starting Boon Roll Complete
@@ -208,6 +377,7 @@ export const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacte
   }) => {
     setRolledBoon(res.selectedRow.data);
     setHasRolledBoon(true);
+    setIsBoonRolling(false);
     sounds.playCoins();
   };
 
@@ -258,14 +428,18 @@ export const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacte
     let startingGold = selectedClass.startingGold;
     let extraRations = 3;
     let extraTorches = selectedClassId === 'rogue' ? 0 : 2;
-    let extraRerollTokens = selectedClassId === 'rogue' ? 2 : 1;
+    let extraRerollTokens = destinyDiagnosis
+      ? destinyDiagnosis.fateTokenCount
+      : selectedClassId === 'rogue'
+      ? 2
+      : 1;
 
     const activeBoon = rolledBoon || STARTING_BOON_TABLE.rows[0].data;
 
     if (activeBoon) {
       if (activeBoon.type === 'gold') startingGold += activeBoon.value;
       if (activeBoon.type === 'lockpicks') {
-        startingGold += 15; // Boon bonus gold along with masterwork kit
+        startingGold += 15;
       }
       if (activeBoon.type === 'supplies') {
         extraRations += 3;
@@ -284,15 +458,18 @@ export const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacte
       }
     }
 
-    // Lockpicks are a single reusable masterwork tool:
-    // If the hero has a lockpick from class equipment or boon, ensure they have exactly 1 reusable lockpick set.
+    // Lockpicks: Rogue and Ranger receive a reusable lockpick set
     const alreadyHasLockpick = inventory.some((inv) => inv.item.id === 'iron_lockpick');
-    const deservesLockpick = alreadyHasLockpick || selectedClassId === 'rogue' || selectedClassId === 'ranger' || (activeBoon && activeBoon.type === 'lockpicks');
+    const deservesLockpick =
+      alreadyHasLockpick ||
+      selectedClassId === 'rogue' ||
+      selectedClassId === 'ranger' ||
+      (activeBoon && activeBoon.type === 'lockpicks');
     if (deservesLockpick && !alreadyHasLockpick && ITEMS_DATABASE['iron_lockpick']) {
       inventory.push({ item: ITEMS_DATABASE['iron_lockpick'], quantity: 1 });
     }
 
-    // Add physical supplies into backpack inventory (each takes 1 slot)
+    // Supplies into backpack
     for (let i = 0; i < extraRations; i++) {
       if (ITEMS_DATABASE['dungeon_ration']) {
         inventory.push({ item: ITEMS_DATABASE['dungeon_ration'], quantity: 1 });
@@ -356,570 +533,286 @@ export const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacte
         return <ShieldAlert className="w-6 h-6" />;
       case 'Target':
         return <Target className="w-6 h-6" />;
+      case 'Crown':
+        return <Crown className="w-6 h-6" />;
       default:
         return <Sword className="w-6 h-6" />;
     }
   };
 
-  const getGearIcon = (iconName: string) => {
-    switch (iconName) {
-      case 'Sword':
-        return <Sword className="w-3.5 h-3.5" />;
-      case 'Shield':
-        return <Shield className="w-3.5 h-3.5" />;
-      case 'ShieldAlert':
-        return <ShieldAlert className="w-3.5 h-3.5" />;
-      case 'ShieldCheck':
-        return <ShieldCheck className="w-3.5 h-3.5" />;
-      case 'Zap':
-        return <Zap className="w-3.5 h-3.5" />;
-      case 'Wand':
-        return <Wand2 className="w-3.5 h-3.5" />;
-      case 'Target':
-        return <Target className="w-3.5 h-3.5" />;
-      case 'Hammer':
-        return <Hammer className="w-3.5 h-3.5" />;
-      case 'Shirt':
-        return <Shirt className="w-3.5 h-3.5" />;
-      case 'Crown':
-        return <Crown className="w-3.5 h-3.5" />;
-      case 'Footprints':
-        return <Footprints className="w-3.5 h-3.5" />;
-      case 'Key':
-        return <Key className="w-3.5 h-3.5" />;
-      case 'BookOpen':
-        return <BookOpen className="w-3.5 h-3.5" />;
-      case 'Sparkles':
-        return <Sparkles className="w-3.5 h-3.5" />;
-      default:
-        return <Package className="w-3.5 h-3.5" />;
-    }
-  };
+  // Calculate live total sum
+  const currentTotalSum = STAT_ORDER.reduce(
+    (sum, s) => sum + (rolledStatBreakdowns[s.key]?.total || 0),
+    0
+  );
+
+  const rolledCount = STAT_ORDER.filter((s) => rolledStatBreakdowns[s.key] !== undefined).length;
+  const allRolled = rolledCount === STAT_ORDER.length;
+  const activeStatDef = STAT_ORDER.find((s) => s.key === activeStatKey) || STAT_ORDER[0];
+  const activeBreakdown = rolledStatBreakdowns[activeStatKey];
+  const isCurrentStatRolled = activeBreakdown !== undefined;
+  const nextStatToRoll = STAT_ORDER.find((s) => rolledStatBreakdowns[s.key] === undefined);
+
+  // Active dice for display
+  const displayDice = isRollingCurrentStat
+    ? animatedDiceValues
+    : activeBreakdown
+    ? activeBreakdown.rolls
+    : [3, 4, 5, 2];
+
+  // Which die index is dropped
+  const droppedIndexToShow = isRollingCurrentStat
+    ? rollStage === 'dropped'
+      ? currentDroppedIndex
+      : null
+    : activeBreakdown
+    ? activeBreakdown.droppedIndex
+    : null;
 
   return (
-    <div className="min-h-screen bg-[#0d0906] text-amber-100 flex flex-col justify-between p-3 sm:p-4 md:p-8 font-sans selection:bg-amber-800 selection:text-amber-100 overflow-x-hidden w-full max-w-full">
-      {/* Header */}
-      <header className="max-w-4xl mx-auto w-full text-center mb-6">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-950/80 border border-amber-800/60 text-amber-300 text-xs font-mono mb-2">
-          <Dices className="w-3.5 h-3.5" />
-          Old School Tabletop Adventurer Creation
-        </div>
-        <h1 className="text-3xl md:text-5xl font-black font-serif text-transparent bg-clip-text bg-gradient-to-b from-amber-200 via-amber-400 to-amber-600 tracking-wide drop-shadow-md">
-          CHOOSE YOUR ADVENTURER
-        </h1>
-        <p className="text-sm md:text-base text-stone-400 mt-1 max-w-xl mx-auto font-serif italic">
-          Select your class archetype, roll your attributes (4d6 drop lowest + class archetype boost), and roll for your starting heirloom.
-        </p>
+    <div className="h-full min-h-0 flex-1 w-full max-w-full flex flex-col overflow-hidden bg-[#0d0906] text-amber-100 font-sans selection:bg-amber-800 selection:text-amber-100">
+      {/* Scrollable Content Container */}
+      <div className="flex-1 min-h-0 w-full overflow-y-auto scroll-smooth px-3 sm:px-4 md:px-6 pt-3 sm:pt-4 md:pt-5 pb-6 flex flex-col items-center">
+        {/* Header */}
+        <header className="max-w-4xl w-full text-center mb-4 shrink-0">
+          <h1 className="text-3xl md:text-5xl font-black font-serif text-transparent bg-clip-text bg-gradient-to-b from-amber-200 via-amber-400 to-amber-600 tracking-wide drop-shadow-md">
+            Roll your character
+          </h1>
+          <p className="text-sm md:text-base text-stone-400 mt-1 max-w-xl mx-auto font-serif italic">
+            Roll 4d6 for each attribute, dropping the lowest value, to determine your character's class and characteristics.
+          </p>
 
-        {/* Step Indicator */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 mt-4 max-w-2xl mx-auto">
-          {[
-            { id: 'CLASS_SELECT', label: '1. Choose Class' },
-            { id: 'STATS_ROLL', label: '2. Roll Attributes' },
-            { id: 'BOON_ROLL', label: '3. Roll Heirloom' },
-            { id: 'FINALIZE', label: '4. Embark' },
-          ].map((s, idx) => {
-            const stepKeys = ['CLASS_SELECT', 'STATS_ROLL', 'BOON_ROLL', 'FINALIZE'];
-            const isActive = currentStep === s.id;
-            const isDone = stepKeys.indexOf(currentStep) > idx;
+          {/* Step Indicator */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 mt-4 max-w-2xl mx-auto">
+            {[
+              { id: 'STATS_ROLL', label: '1. Roll Attributes' },
+              { id: 'DESTINY_REVEAL', label: '2. Assigned Calling' },
+              { id: 'BOON_ROLL', label: '3. Roll Heirloom' },
+              { id: 'FINALIZE', label: '4. Embark' },
+            ].map((s, idx) => {
+              const stepKeys = ['STATS_ROLL', 'DESTINY_REVEAL', 'BOON_ROLL', 'FINALIZE'];
+              const isActive = currentStep === s.id;
+              const isDone = stepKeys.indexOf(currentStep) > idx;
 
-            return (
-              <div
-                key={s.id}
-                className={`text-center py-2 px-2 rounded-lg text-xs font-mono border transition-all ${
-                  isActive
-                    ? 'bg-amber-900/60 border-amber-400 text-amber-200 font-bold shadow-md'
-                    : isDone
-                    ? 'bg-emerald-950/40 border-emerald-800/60 text-emerald-400'
-                    : 'bg-stone-900/40 border-stone-800 text-stone-500'
-                }`}
-              >
-                <div className="truncate">{s.label}</div>
-              </div>
-            );
-          })}
-        </div>
-      </header>
+              return (
+                <div
+                  key={s.id}
+                  className={`text-center py-2 px-2 rounded-lg text-xs font-mono border transition-all ${
+                    isActive
+                      ? 'bg-amber-900/60 border-amber-400 text-amber-200 font-bold shadow-md'
+                      : isDone
+                      ? 'bg-emerald-950/40 border-emerald-800/60 text-emerald-400'
+                      : 'bg-stone-900/40 border-stone-800 text-stone-500'
+                  }`}
+                >
+                  <div className="truncate">{s.label}</div>
+                </div>
+              );
+            })}
+          </div>
+        </header>
 
-      {/* Main Content Step Container */}
-      <main className="max-w-4xl mx-auto w-full flex-1 flex flex-col items-center justify-center">
+        {/* Main Content Steps */}
+        <main className="max-w-4xl w-full flex-1 min-h-0 flex flex-col items-center justify-start">
         {/* ==================================================== */}
-        {/* STEP 1: CHOOSE CLASS (Visual Card Gallery) */}
+        {/* STEP 1: ROLL ATTRIBUTES (Scrollable Attribute Guide) */}
         {/* ==================================================== */}
-        {currentStep === 'CLASS_SELECT' && (
-          <div className="w-full space-y-4">
-            <div className="text-center mb-1">
-              <span className="text-xs font-mono text-amber-400 uppercase font-bold tracking-wider">
-                Step 1: Select Adventurer Archetype
-              </span>
-              <h2 className="text-xl md:text-2xl font-serif font-black text-amber-200">
-                Choose Your Hero Class
-              </h2>
-            </div>
-
-            {/* 6 Class Cards Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5">
-              {HERO_CLASSES.map((heroClass) => {
-                const isSelected = selectedClassId === heroClass.id;
-                const bonusesList = Object.entries(heroClass.statBonuses || {})
-                  .map(([st, val]) => `+${val} ${st}`)
-                  .join(', ');
+        {currentStep === 'STATS_ROLL' && (
+          <div className="w-full max-w-3xl space-y-2.5 animate-fadeIn">
+            {/* 5 Attribute Cards (Clicking any selects it in the footer) */}
+            <div className="space-y-2">
+              {STAT_ORDER.map((item, idx) => {
+                const statKey = item.key;
+                const isRolled = rolledStatBreakdowns[statKey] !== undefined;
+                const isSelected = activeStatKey === statKey;
+                const value = stats[statKey];
+                const modifier = getStatModifier(value);
 
                 return (
-                  <button
-                    key={heroClass.id}
-                    id={`btn-select-class-${heroClass.id}`}
-                    onClick={() => handleSelectClass(heroClass.id)}
-                    className={`p-4 rounded-xl border-2 text-left transition-all cursor-pointer relative flex flex-col justify-between group ${
+                  <div
+                    key={statKey}
+                    id={`stat-card-${statKey}`}
+                    onClick={() => {
+                      setActiveStatKey(statKey);
+                      sounds.playTileReveal();
+                    }}
+                    className={`p-3 rounded-xl border-2 transition-all cursor-pointer flex items-center justify-between gap-3 ${
                       isSelected
-                        ? 'bg-gradient-to-b from-[#2a1a0f] to-[#1a110a] border-amber-400 ring-2 ring-amber-400/40 shadow-xl scale-[1.02]'
-                        : 'bg-[#16100a]/90 border-amber-900/50 hover:border-amber-700/80 hover:bg-[#1f150d]'
+                        ? 'bg-[#2b1c10] border-amber-500 shadow-xl ring-2 ring-amber-500/40'
+                        : isRolled
+                        ? 'bg-[#1a120b] border-amber-800/60 hover:border-amber-700'
+                        : 'bg-[#140d07] border-stone-800/80 hover:border-stone-700'
                     }`}
                   >
-                    {isSelected && (
-                      <div className="absolute top-3 right-3 p-1 rounded-full bg-amber-500 text-stone-950 shadow">
-                        <Check className="w-3.5 h-3.5 stroke-[3]" />
+                    {/* Left: Stat Icon & Title & Fate Re-roll Button */}
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div
+                        className={`w-10 h-10 rounded-xl border-2 flex items-center justify-center font-serif font-black text-sm shrink-0 transition-all ${
+                          isSelected
+                            ? 'bg-gradient-to-b from-amber-600 to-amber-800 border-amber-400 text-stone-950 shadow-md'
+                            : isRolled
+                            ? 'bg-stone-900 border-amber-700 text-amber-300'
+                            : 'bg-stone-950 border-stone-800 text-stone-500'
+                        }`}
+                      >
+                        {statKey}
                       </div>
-                    )}
+                      <div className="flex items-center gap-2.5 flex-wrap">
+                        <span className="font-serif font-bold text-stone-200 text-sm sm:text-base">
+                          {idx + 1}. {item.label}
+                        </span>
 
-                    <div>
-                      <div className="flex items-center gap-3 mb-2">
-                        <div
-                          className={`p-2.5 rounded-lg border flex items-center justify-center transition-transform group-hover:scale-105 ${
-                            isSelected
-                              ? 'bg-amber-500/20 border-amber-500 text-amber-300'
-                              : 'bg-stone-900 border-amber-900/60 text-stone-400'
-                          }`}
-                        >
-                          {getClassIcon(heroClass.icon)}
-                        </div>
-                        <div>
-                          <h3 className="font-serif font-black text-base text-amber-100 leading-tight">
-                            {heroClass.name}
-                          </h3>
-                          <span className="text-[11px] font-mono text-amber-400/80 block">
-                            {heroClass.title}
-                          </span>
-                        </div>
-                      </div>
-
-                      <p className="text-xs text-stone-300 font-serif leading-relaxed mb-3">
-                        {heroClass.description}
-                      </p>
-
-                      {/* Starting Equipment Highlight Box */}
-                      <div className="mb-3 p-2 rounded-lg bg-stone-950/80 border border-amber-950 text-[11px] space-y-1">
-                        <div className="text-[10px] font-mono font-bold text-amber-400/90 uppercase tracking-wider flex items-center gap-1">
-                          <Sword className="w-3 h-3 text-amber-400" />
-                          <span>Starting Arsenal & Gear</span>
-                        </div>
-                        {heroClass.gearHighlights.map((gear, gIdx) => (
-                          <div key={gIdx} className="flex items-center justify-between gap-1 text-stone-300">
-                            <div className="flex items-center gap-1.5 truncate">
-                              <span className="text-amber-400">{getGearIcon(gear.icon)}</span>
-                              <span className="font-medium truncate">{gear.name}</span>
-                            </div>
-                            <span className="text-[10px] font-mono text-amber-300/80 shrink-0 font-bold">
-                              {gear.bonus}
-                            </span>
-                          </div>
-                        ))}
+                        {/* Button for fate re-roll (if re-roll token(s) are available and attribute is rolled) */}
+                        {isRolled && fateTokens > 0 && (
+                          <button
+                            id={`btn-reroll-card-${statKey}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRollSingleStat(statKey, true);
+                            }}
+                            disabled={isRollingCurrentStat}
+                            className="px-2.5 py-1 bg-purple-950 hover:bg-purple-900 text-purple-200 border border-purple-600 rounded-lg font-mono text-xs font-bold cursor-pointer shadow flex items-center gap-1.5 transition-all active:scale-95"
+                            title={`Spend 1 Fate Token to reroll ${item.label}`}
+                          >
+                            <RefreshCw className="w-3 h-3 text-purple-400" />
+                            <span>Fate Re-roll ({fateTokens})</span>
+                          </button>
+                        )}
                       </div>
                     </div>
 
-                    <div className="space-y-1.5 pt-2 border-t border-amber-900/40 text-[11px] font-mono">
-                      <div className="flex justify-between items-center">
-                        <span className="text-stone-400">Primary Stat:</span>
-                        <div className="flex items-center gap-1">
-                          <span className="px-2 py-0.5 rounded bg-amber-950 border border-amber-700 text-amber-300 font-bold">
-                            {heroClass.primaryStat} (+{heroClass.primaryStatBoost} Boost)
-                          </span>
-                        </div>
+                    {/* Right: Rolled Value & Modifier */}
+                    <div className="text-right pl-3 border-l border-stone-800 shrink-0 min-w-[70px]">
+                      <div className="text-xl sm:text-2xl font-black font-mono text-cyan-300 leading-none">
+                        {isRolled ? value : '—'}
                       </div>
-                      <div className="flex justify-between items-center text-stone-400">
-                        <span>Stat Boosts:</span>
-                        <span className="text-emerald-400 font-bold">
-                          {bonusesList}
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center text-stone-400">
-                        <span>Base HP / Energy:</span>
-                        <span className="text-stone-300 font-bold">
-                          {heroClass.hpFormula.base} HP / {heroClass.manaFormula.base} EP
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center text-stone-400">
-                        <span>Starting Gold:</span>
-                        <span className="text-yellow-400 font-bold">
-                          {heroClass.startingGold} Gold
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center text-stone-400">
-                        <span>Starting Fate:</span>
-                        <span className="text-purple-300 font-bold">
-                          {heroClass.id === 'rogue' ? '2 Fate Tokens' : '1 Fate Token'}
-                        </span>
+                      <div className="text-[10px] font-mono text-amber-400 font-bold mt-1">
+                        {isRolled ? `${modifier >= 0 ? `+${modifier}` : modifier} Mod` : 'Pending'}
                       </div>
                     </div>
-                  </button>
+                  </div>
                 );
               })}
-            </div>
-
-            {/* Selected Class Details Preview & Proceed Button */}
-            <div className="bg-[#18120c]/95 border-2 border-amber-700/80 rounded-xl p-4 flex flex-col md:flex-row items-center justify-between gap-4 shadow-xl">
-              <div className="flex items-center gap-3">
-                <div className="p-3 bg-amber-500/20 border border-amber-500 rounded-xl text-amber-400 shrink-0">
-                  {getClassIcon(selectedClass.icon)}
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-mono text-amber-400 uppercase font-bold">
-                      Selected Hero Class
-                    </span>
-                    <span className="text-xs font-serif text-stone-400">• {selectedClass.title}</span>
-                    <span className="px-2 py-0.5 rounded bg-amber-950 border border-amber-700 text-amber-300 text-[10px] font-mono font-bold">
-                      Primary {selectedClass.primaryStat} (+{selectedClass.primaryStatBoost} Boost)
-                    </span>
-                  </div>
-                  <h4 className="text-xl font-serif font-black text-amber-200">
-                    {selectedClass.name}
-                  </h4>
-                  <p className="text-xs text-stone-300 mt-0.5">
-                    Starting Loadout: {selectedClass.startingEquipment.map((id) => ITEMS_DATABASE[id]?.name || id).join(', ')}
-                  </p>
-                </div>
-              </div>
-
-              <button
-                id="btn-confirm-chosen-class"
-                onClick={() => {
-                  setCurrentStep('STATS_ROLL');
-                }}
-                className="px-6 py-3.5 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 text-stone-950 font-serif font-black rounded-xl shadow-xl flex items-center gap-2 text-sm transition-all cursor-pointer transform hover:scale-105 shrink-0"
-              >
-                <span>Confirm {selectedClass.name} & Roll Boosted Attributes</span>
-                <ChevronRight className="w-4 h-4" />
-              </button>
             </div>
           </div>
         )}
 
         {/* ==================================================== */}
-        {/* STEP 2: ROLL ATTRIBUTES IN TURN (4d6 Drop Lowest + Class Boost) */}
+        {/* STEP 2: ASSIGNED DESTINY & LOADOUT REVEAL */}
         {/* ==================================================== */}
-        {currentStep === 'STATS_ROLL' && (() => {
-          const rolledCount = STAT_ORDER.filter((s) => rolledStatBreakdowns[s.key] !== undefined).length;
-          const nextStatToRoll = STAT_ORDER.find((s) => rolledStatBreakdowns[s.key] === undefined);
-          const allRolled = rolledCount === STAT_ORDER.length;
-
-          return (
-            <div className="w-full max-w-3xl bg-[#18120c]/95 border-2 border-amber-800/60 rounded-xl p-3.5 sm:p-5 shadow-2xl backdrop-blur-md text-amber-100 space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-amber-900/50 pb-4">
-                <div>
-                  <span className="px-2.5 py-0.5 rounded bg-amber-950/80 border border-amber-700/60 text-amber-400 font-mono text-[11px] sm:text-xs tracking-wider uppercase">
-                    Step 2: Roll Ability Scores (4d6 Drop Lowest + Archetype Boost)
-                  </span>
-                  <h3 className="text-lg sm:text-xl font-bold font-serif text-amber-200 mt-1">
-                    Rolling Attributes for {selectedClass.name}
-                  </h3>
-                  <p className="text-xs text-stone-400 mt-0.5">
-                    Roll 4d6 (drop the lowest die) for each stat, plus <span className="text-amber-300 font-bold">+{selectedClass.primaryStatBoost} {selectedClass.name} Primary Boost</span> on your defining attributes.
-                  </p>
-                </div>
-
-                {/* Fate Tokens Indicator & Progress */}
-                <div className="flex items-center gap-2 shrink-0">
-                  <div className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg bg-purple-950/80 border border-purple-800 text-purple-300 text-xs font-mono">
-                    <Sparkles className="w-3.5 h-3.5 text-purple-400" />
-                    <span>Fate Tokens: {fateTokens}</span>
-                  </div>
-
-                  <div className="px-2.5 sm:px-3 py-1.5 rounded-lg bg-stone-900 border border-amber-900/60 text-amber-300 text-xs font-mono font-bold">
-                    {rolledCount}/5 Rolled
-                  </div>
-                </div>
+        {currentStep === 'DESTINY_REVEAL' && destinyDiagnosis && (
+          <div className="w-full max-w-3xl bg-[#18120c]/95 border-2 border-amber-600 rounded-xl p-4 sm:p-6 shadow-2xl backdrop-blur-md text-amber-100 space-y-5 animate-fadeIn">
+            {/* Header Banner */}
+            <div className="border-b border-amber-900/60 pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <span className="px-2.5 py-0.5 rounded text-[11px] font-mono font-bold uppercase bg-amber-950 border border-amber-600 text-amber-300">
+                  {destinyDiagnosis.verdictTag}
+                </span>
+                <h3 className="text-2xl sm:text-3xl font-serif font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-amber-400 to-amber-200 mt-1">
+                  {destinyDiagnosis.callingTitle}
+                </h3>
               </div>
-
-              {/* Turn Sequence Steps Bar */}
-              <div className="grid grid-cols-5 gap-1 sm:gap-1.5 p-1.5 sm:p-2 bg-stone-950/80 rounded-xl border border-amber-950">
-                {STAT_ORDER.map((item, idx) => {
-                  const isDone = rolledStatBreakdowns[item.key] !== undefined;
-                  const isCurrent = nextStatToRoll?.key === item.key;
-                  const val = stats[item.key];
-                  const bonus = selectedClass.statBonuses?.[item.key] || 0;
-
-                  return (
-                    <div
-                      key={item.key}
-                      className={`text-center py-1 sm:py-1.5 px-0.5 sm:px-1 rounded-lg border font-mono transition-all ${
-                        isDone
-                          ? 'bg-amber-950/40 border-amber-700/80 text-amber-200'
-                          : isCurrent
-                          ? 'bg-amber-500/20 border-amber-500 text-amber-300 ring-1 ring-amber-500/60 animate-pulse'
-                          : 'bg-stone-900/40 border-stone-800 text-stone-500'
-                      }`}
-                    >
-                      <div className="text-[9px] sm:text-[10px] font-bold truncate">
-                        {idx + 1}. {item.key} {bonus > 0 && <span className="text-amber-400">(+{bonus})</span>}
-                      </div>
-                      <div className="text-[11px] sm:text-xs font-black mt-0.5">
-                        {isDone ? `${val} (✓)` : isCurrent ? '➔ Roll' : 'Pending'}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Active Stat Next-In-Turn Callout Banner */}
-              {nextStatToRoll ? (
-                <div className="bg-gradient-to-r from-amber-950/80 via-stone-900 to-amber-950/80 border border-amber-600/70 rounded-xl p-3 sm:p-3.5 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 shadow-lg">
-                  <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
-                    <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-amber-600/20 border border-amber-500 text-amber-400 flex items-center justify-center font-serif font-black text-sm sm:text-base animate-pulse shrink-0">
-                      {nextStatToRoll.key}
-                    </div>
-                    <div className="min-w-0">
-                      <div className="text-[10px] sm:text-[11px] font-mono text-amber-400 font-bold uppercase tracking-wider flex flex-wrap items-center gap-1">
-                        <span>Current Stat ({rolledCount + 1}/5)</span>
-                        {(selectedClass.statBonuses?.[nextStatToRoll.key] || 0) > 0 && (
-                          <span className="text-emerald-400 font-bold">
-                            (+{selectedClass.statBonuses?.[nextStatToRoll.key]} {selectedClass.name} Boost)
-                          </span>
-                        )}
-                      </div>
-                      <div className="text-xs sm:text-sm md:text-base font-serif font-bold text-amber-100 truncate">
-                        Roll for {nextStatToRoll.label} (4d6 drop lowest + class bonus)
-                      </div>
-                      <div className="text-[11px] text-stone-400 truncate sm:whitespace-normal">
-                        {nextStatToRoll.desc}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 justify-end shrink-0">
-                    <button
-                      id={`btn-roll-active-stat-${nextStatToRoll.key}`}
-                      onClick={() => handleRollSingleStat(nextStatToRoll.key)}
-                      disabled={isRollingCurrentStat}
-                      className="flex-1 sm:flex-initial px-3.5 sm:px-5 py-2 sm:py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 text-stone-950 font-serif font-black rounded-lg text-xs sm:text-sm flex items-center justify-center gap-1.5 sm:gap-2 shadow cursor-pointer transition-all shrink-0 hover:scale-105 active:scale-95 disabled:opacity-50"
-                    >
-                      <Dices className="w-4 h-4" />
-                      <span>Roll {nextStatToRoll.label}</span>
-                    </button>
-                    {!allRolled && (
-                      <button
-                        id="btn-fast-roll-all-stats"
-                        onClick={handleRollAllStatsInTurn}
-                        disabled={isRollingCurrentStat}
-                        className="px-2.5 sm:px-3 py-2 sm:py-2.5 bg-stone-800 hover:bg-stone-700 text-stone-300 font-mono text-xs rounded-lg border border-stone-600 flex items-center justify-center gap-1 cursor-pointer transition-all disabled:opacity-50 shrink-0"
-                        title="Roll all 5 stats automatically"
-                      >
-                        <RefreshCw className="w-3.5 h-3.5" />
-                        <span>Roll All</span>
-                      </button>
-                    )}
-                  </div>
-                </div>
-              ) : (
-                <div className="bg-emerald-950/50 border border-emerald-700/60 rounded-xl p-3.5 flex items-center justify-between gap-3 text-emerald-200">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-emerald-500/20 border border-emerald-500 flex items-center justify-center text-emerald-400 font-bold shrink-0">
-                      ✓
-                    </div>
-                    <div>
-                      <div className="text-sm font-bold font-serif text-emerald-300">All 5 Attributes Rolled & Boosted!</div>
-                      <div className="text-xs text-stone-300">
-                        Class archetype bonuses have been added. You may spend Fate Tokens to reroll any attribute if desired, or proceed to the Heirloom Table.
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Active Rolling 4d6 Visualizer Tray */}
-              {isRollingCurrentStat && (
-                <div className="mb-2">
-                  <DiceVisualizer
-                    isRolling={true}
-                    allowCustomDice={false}
-                    label={`Rolling 4d6 for ${rollingStatKey ? `${rollingStatKey} (${STAT_ORDER.find((s) => s.key === rollingStatKey)?.label})` : 'Attributes'}...`}
-                    currentRoll={{
-                      diceCount: 4,
-                      diceSides: 6,
-                      modifier: 0,
-                      individualRolls: [
-                        Math.floor(Math.random() * 6) + 1,
-                        Math.floor(Math.random() * 6) + 1,
-                        Math.floor(Math.random() * 6) + 1,
-                        Math.floor(Math.random() * 6) + 1,
-                      ],
-                      total: 0,
-                      formulaString: '4d6 (Drop Lowest)',
-                      isCrit: false,
-                      isFumble: false,
-                    }}
-                  />
-                </div>
-              )}
-
-              {/* Attributes List */}
-              <div className="space-y-2.5">
-                {STAT_ORDER.map((item, idx) => {
-                  const statKey = item.key;
-                  const isRolled = rolledStatBreakdowns[statKey] !== undefined;
-                  const isCurrentTurn = nextStatToRoll?.key === statKey;
-                  const currentBreakdown = rolledStatBreakdowns[statKey];
-                  const value = stats[statKey];
-                  const modifier = getStatModifier(value);
-                  const isPrimary = selectedClass.primaryStat === statKey;
-                  const classBonus = selectedClass.statBonuses?.[statKey] || 0;
-
-                  return (
-                    <div
-                      key={statKey}
-                      className={`p-2.5 sm:p-3 rounded-lg border transition-all ${
-                        isCurrentTurn
-                          ? 'bg-[#2b1c10] border-amber-500 shadow-md ring-1 ring-amber-500/60'
-                          : isPrimary
-                          ? 'bg-[#22160d] border-amber-600/80 shadow-md'
-                          : 'bg-stone-950/60 border-stone-800'
-                      }`}
-                    >
-                      {/* Stat Header: Icon/Name + Badges on Left, Score on Right */}
-                      <div className="flex items-center justify-between gap-2">
-                        {/* Left: Stat badge & Info */}
-                        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-                          <div className={`w-8 h-8 sm:w-9 sm:h-9 rounded-lg border flex items-center justify-center font-serif font-bold text-xs sm:text-sm shrink-0 ${
-                            isCurrentTurn
-                              ? 'bg-amber-600/30 border-amber-500 text-amber-200'
-                              : isRolled
-                              ? 'bg-stone-900 border-amber-800/80 text-amber-300'
-                              : 'bg-stone-950 border-stone-800 text-stone-500'
-                          }`}>
-                            {statKey}
-                          </div>
-                          <div className="min-w-0">
-                            <div className="flex flex-wrap items-center gap-1 sm:gap-1.5">
-                              <span className="font-serif font-bold text-stone-200 text-xs sm:text-sm">
-                                {idx + 1}. {item.label}
-                              </span>
-                              {isPrimary && (
-                                <span className="px-1.5 py-0.2 rounded text-[9px] sm:text-[10px] font-bold bg-amber-900/80 border border-amber-600 text-amber-300 uppercase">
-                                  Primary (+{selectedClass.primaryStatBoost} Boost)
-                                </span>
-                              )}
-                              {!isPrimary && classBonus > 0 && (
-                                <span className="px-1.5 py-0.2 rounded text-[9px] sm:text-[10px] font-bold bg-emerald-950 border border-emerald-700 text-emerald-400 uppercase">
-                                  +{classBonus} Archetype
-                                </span>
-                              )}
-                              {isCurrentTurn && (
-                                <span className="px-1.5 py-0.2 rounded text-[9px] sm:text-[10px] font-bold bg-amber-500/30 border border-amber-400 text-amber-300 uppercase animate-pulse">
-                                  Active Turn
-                                </span>
-                              )}
-                            </div>
-                            <p className="text-[10px] sm:text-[11px] text-stone-400 truncate sm:whitespace-normal">{item.desc}</p>
-                          </div>
-                        </div>
-
-                        {/* Right: Score and Modifiers */}
-                        <div className="text-right pl-2 sm:pl-3 border-l border-stone-800 shrink-0 min-w-[48px] sm:min-w-[55px]">
-                          <div className="text-base sm:text-lg font-black font-mono text-cyan-300 leading-none">
-                            {isRolled ? value : '—'}
-                          </div>
-                          <div className="text-[9px] sm:text-[10px] font-mono text-amber-400 font-bold mt-0.5 whitespace-nowrap">
-                            {isRolled ? `${modifier >= 0 ? `+${modifier}` : modifier} Mod` : '—'}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Stat Bottom Actions: Dice Breakdown & Reroll OR Roll Button */}
-                      <div className="flex flex-wrap items-center justify-between gap-2 pt-2 mt-2 border-t border-stone-800/60">
-                        {isRolled ? (
-                          <div className="flex flex-wrap items-center justify-between w-full gap-2">
-                            <div className="flex flex-wrap items-center gap-1.5">
-                              <div className="flex items-center gap-1" title="Rolled 4d6 (dimmed = dropped lowest)">
-                                {currentBreakdown.rolls.map((d, dIdx) => (
-                                  <DieShape
-                                    key={dIdx}
-                                    sides={6}
-                                    value={d}
-                                    size="xs"
-                                    isDropped={d === currentBreakdown.dropped}
-                                  />
-                                ))}
-                              </div>
-                              {currentBreakdown.classBonus > 0 && (
-                                <span className="text-[10px] sm:text-[11px] font-mono text-emerald-400 font-bold bg-emerald-950/80 px-1.5 py-0.5 rounded border border-emerald-800">
-                                  +{currentBreakdown.classBonus} Boost
-                                </span>
-                              )}
-                            </div>
-                            <button
-                              id={`btn-reroll-stat-${statKey}`}
-                              onClick={() => handleRollSingleStat(statKey, true)}
-                              disabled={isRollingCurrentStat || fateTokens <= 0}
-                              title="Spend Fate token to reroll this stat"
-                              className={`px-2 py-1 rounded transition-colors flex items-center gap-1 text-[10px] sm:text-[11px] font-mono shrink-0 ${
-                                fateTokens > 0
-                                  ? 'bg-purple-950 hover:bg-purple-900 text-purple-300 border border-purple-700 cursor-pointer'
-                                  : 'bg-stone-900 text-stone-600 border border-stone-800 cursor-not-allowed'
-                              }`}
-                            >
-                              <RefreshCw className="w-3 h-3" />
-                              <span>Reroll</span>
-                            </button>
-                          </div>
-                        ) : (
-                          <button
-                            id={`btn-roll-stat-${statKey}`}
-                            onClick={() => handleRollSingleStat(statKey)}
-                            disabled={isRollingCurrentStat}
-                            className={`px-3 py-1.5 font-bold rounded text-xs flex items-center gap-1 cursor-pointer transition-colors ${
-                              isCurrentTurn
-                                ? 'bg-amber-600 hover:bg-amber-500 text-stone-950 border border-amber-400 shadow animate-pulse'
-                                : 'bg-stone-800 hover:bg-stone-700 text-stone-300 border border-stone-700'
-                            }`}
-                          >
-                            <Dices className="w-3.5 h-3.5" />
-                            <span>Roll 4d6 {classBonus > 0 ? `(+${classBonus})` : ''}</span>
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Navigation Buttons */}
-              <div className="flex flex-col-reverse sm:flex-row items-center justify-between gap-3 border-t border-amber-900/50 pt-4 mt-4">
-                <button
-                  onClick={() => setCurrentStep('CLASS_SELECT')}
-                  className="text-xs text-stone-400 hover:text-stone-200 transition-colors cursor-pointer"
-                >
-                  ← Back to Class Selection
-                </button>
-                <button
-                  id="btn-confirm-stats"
-                  disabled={!allRolled}
-                  onClick={() => {
-                    if (allRolled) {
-                      setCurrentStep('BOON_ROLL');
-                    }
-                  }}
-                  className={`w-full sm:w-auto px-5 sm:px-6 py-2.5 font-serif font-black rounded-xl shadow-xl flex items-center justify-center gap-2 text-xs sm:text-sm transition-all ${
-                    allRolled
-                      ? 'bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 text-stone-950 cursor-pointer transform hover:scale-105'
-                      : 'bg-stone-900 border border-stone-800 text-stone-500 cursor-not-allowed'
-                  }`}
-                >
-                  <span>{allRolled ? 'Confirm Attributes & Roll Heirloom Table (1d6)' : `Roll All Attributes (${rolledCount}/5 Done)`}</span>
-                  <ChevronRight className="w-4 h-4" />
-                </button>
+              <div className="p-3 bg-amber-500/20 border border-amber-500 rounded-2xl text-amber-400 self-start sm:self-auto">
+                {getClassIcon(selectedClass.icon)}
               </div>
             </div>
-          );
-        })()}
+
+            {/* Narrative Reasoning Box */}
+            <div className="p-4 bg-stone-950/80 rounded-xl border border-amber-900/70 space-y-2">
+              <div className="flex items-center gap-2 text-xs font-mono text-amber-400 font-bold uppercase">
+                <Sparkles className="w-4 h-4 text-amber-400" />
+                <span>Oracle Verdict & Destiny Diagnosis:</span>
+              </div>
+              <p className="text-sm font-serif text-stone-200 leading-relaxed italic">
+                "{destinyDiagnosis.reason}"
+              </p>
+              <div className="flex flex-wrap gap-1.5 pt-1">
+                {destinyDiagnosis.highlightStats.map((h, i) => (
+                  <span
+                    key={i}
+                    className="px-2 py-0.5 rounded bg-[#2b190f] border border-amber-700/60 text-amber-300 font-mono text-xs"
+                  >
+                    ✦ {h}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            {/* Rolled Attributes Summary */}
+            <div>
+              <div className="text-xs font-mono text-stone-400 uppercase mb-1.5">
+                YOUR FATED ABILITY SCORES (TOTAL SUM: {destinyDiagnosis.totalScore})
+              </div>
+              <div className="grid grid-cols-5 gap-2 text-center font-mono">
+                {STAT_ORDER.map(({ key }) => {
+                  const val = stats[key];
+                  const mod = getStatModifier(val);
+                  return (
+                    <div
+                      key={key}
+                      className="p-2 bg-stone-950/90 rounded-lg border border-amber-950"
+                    >
+                      <div className="text-[10px] text-stone-400">{key}</div>
+                      <div className="text-base font-black text-cyan-300">{val}</div>
+                      <div className="text-[10px] font-bold text-amber-400">
+                        {mod >= 0 ? `+${mod}` : mod}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Assigned Starting Loadout */}
+            <div className="p-4 bg-[#21160d] rounded-xl border border-amber-700/60 space-y-3">
+              <div className="flex items-center justify-between">
+                <h4 className="text-xs font-mono text-amber-300 font-bold uppercase tracking-wider flex items-center gap-1.5">
+                  <Package className="w-4 h-4 text-amber-400" />
+                  <span>Assigned Starting Equipment & Weaponry</span>
+                </h4>
+                <span className="text-xs font-mono text-yellow-300 font-bold">
+                  {selectedClass.startingGold} Gold • {destinyDiagnosis.fateTokenCount} Fate Tokens
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                {selectedClass.gearHighlights.map((gear, idx) => (
+                  <div
+                    key={idx}
+                    className="p-2.5 bg-stone-950/80 rounded-lg border border-amber-900/60 text-xs font-serif"
+                  >
+                    <div className="font-bold text-amber-200">{gear.name}</div>
+                    <div className="text-[11px] text-stone-400">{gear.type}</div>
+                    <div className="text-[11px] text-amber-300/90 font-mono mt-0.5">{gear.bonus}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Class Skills Preview */}
+            <div className="space-y-2">
+              <div className="text-xs font-mono text-stone-400 uppercase">
+                CLASS COMBAT ABILITIES & SKILLS
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                {selectedClass.skills.map((skill) => (
+                  <div
+                    key={skill.id}
+                    className="p-2.5 bg-stone-950/70 rounded-lg border border-stone-800 text-xs font-serif"
+                  >
+                    <div className="font-bold text-amber-200 flex items-center justify-between">
+                      <span>{skill.name}</span>
+                      <span className="text-[10px] font-mono text-cyan-400">{skill.manaCost} EP</span>
+                    </div>
+                    <p className="text-[11px] text-stone-300 mt-1 leading-snug">
+                      {skill.description}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* ==================================================== */}
         {/* STEP 3: ROLL STARTING BOON / HEIRLOOM (1d6 Table Roll) */}
@@ -935,29 +828,10 @@ export const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacte
               rerollTokens={fateTokens}
               onUseRerollToken={() => setFateTokens((t) => Math.max(0, t - 1))}
               onRollComplete={handleBoonRollComplete}
+              hideHeaderButton={true}
+              externalTrigger={boonTriggerRoll}
+              onRollingStateChange={setIsBoonRolling}
             />
-
-            <div className="flex items-center justify-between max-w-3xl mx-auto w-full pt-2">
-              <button
-                onClick={() => setCurrentStep('STATS_ROLL')}
-                className="text-xs text-stone-400 hover:text-stone-200 transition-colors cursor-pointer"
-              >
-                ← Back to Attributes Roll
-              </button>
-              <button
-                id="btn-confirm-boon"
-                onClick={() => {
-                  if (!rolledBoon) {
-                    setRolledBoon(STARTING_BOON_TABLE.rows[0].data);
-                  }
-                  setCurrentStep('FINALIZE');
-                }}
-                className="px-6 py-2.5 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 text-stone-950 font-serif font-black rounded-xl shadow-xl flex items-center gap-2 text-sm transition-all cursor-pointer transform hover:scale-105"
-              >
-                <span>Finalize Adventurer Details</span>
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
           </div>
         )}
 
@@ -1009,7 +883,7 @@ export const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacte
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 rounded-xl bg-stone-900/80 border border-amber-900/60">
               <div className="space-y-2">
                 <div>
-                  <div className="text-[11px] font-mono text-stone-400 uppercase">CLASS & TITLE</div>
+                  <div className="text-[11px] font-mono text-stone-400 uppercase">CLASS & CALLING</div>
                   <div className="text-lg font-serif font-black text-amber-200">
                     {selectedClass.name} • {selectedClass.title}
                   </div>
@@ -1026,7 +900,7 @@ export const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacte
                 <div className="pt-1">
                   <div className="text-[11px] font-mono text-stone-400 uppercase">STARTING WEALTH & SUPPLIES</div>
                   <div className="text-xs font-mono text-yellow-300 font-bold mt-0.5">
-                    {selectedClass.startingGold + (rolledBoon?.type === 'gold' ? rolledBoon.value : 0)} Gold • 3 Rations • {selectedClass.id === 'rogue' ? (rolledBoon?.type === 'supplies' ? '2 Torches (Boon)' : '0 Torches (Uses Spyglass)') : (rolledBoon?.type === 'supplies' ? '4 Torches' : '2 Torches')}
+                    {selectedClass.startingGold + (rolledBoon?.type === 'gold' ? rolledBoon.value : 0)} Gold • {fateTokens} Fate Tokens • 3 Rations • {selectedClass.id === 'rogue' ? (rolledBoon?.type === 'supplies' ? '2 Torches (Boon)' : '0 Torches (Uses Spyglass)') : (rolledBoon?.type === 'supplies' ? '4 Torches' : '2 Torches')}
                   </div>
                 </div>
               </div>
@@ -1062,27 +936,248 @@ export const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacte
                 </div>
               </div>
             </div>
-
-            {/* Action Buttons */}
-            <div className="flex items-center justify-between border-t border-amber-900/50 pt-4">
-              <button
-                onClick={() => setCurrentStep('BOON_ROLL')}
-                className="text-xs text-stone-400 hover:text-stone-200 transition-colors cursor-pointer"
-              >
-                ← Back to Heirloom Roll
-              </button>
-              <button
-                id="btn-embark-adventure"
-                onClick={handleStartAdventure}
-                className="px-8 py-3.5 bg-gradient-to-r from-amber-600 via-amber-500 to-amber-600 hover:from-amber-500 hover:to-amber-400 text-stone-950 font-black font-serif tracking-wider text-base rounded-xl shadow-2xl transition-all cursor-pointer transform hover:scale-105 flex items-center gap-2"
-              >
-                <UserCheck className="w-5 h-5" />
-                <span>ENTER THE DUNGEON (FLOOR 1) ➔</span>
-              </button>
-            </div>
           </div>
         )}
       </main>
+    </div>
+
+      {/* ==================================================== */}
+      {/* FIXED SAME-SIZE TABLETOP FOOTER (STEPS 1, 2, 3, 4) */}
+      {/* ==================================================== */}
+      <div className="shrink-0 z-40 w-full bg-[#160f09]/98 border-t-2 border-amber-800/80 shadow-[0_-12px_28px_rgba(0,0,0,0.95)] backdrop-blur-md px-3 sm:px-4 py-2 sm:py-2.5">
+        <div className="max-w-xl mx-auto flex flex-col gap-2">
+          {currentStep === 'STATS_ROLL' && (
+            <>
+              {/* 1. Characteristic Buttons: Single line (STR=? / STR=13) */}
+              <div className="grid grid-cols-5 gap-1.5 sm:gap-2">
+                {STAT_ORDER.map((item) => {
+                  const isSelected = activeStatKey === item.key;
+                  const isRolled = rolledStatBreakdowns[item.key] !== undefined;
+                  const score = stats[item.key];
+                  const label = `${item.key}=${isRolled ? score : '?'}`;
+
+                  return (
+                    <button
+                      key={item.key}
+                      id={`btn-select-stat-${item.key}`}
+                      onClick={() => {
+                        setActiveStatKey(item.key);
+                        sounds.playTileReveal();
+                      }}
+                      className={`py-1.5 px-1 rounded-md border text-xs sm:text-sm font-mono font-bold text-center transition-all cursor-pointer whitespace-nowrap shadow-sm ${
+                        isSelected
+                          ? 'bg-gradient-to-b from-amber-600 to-amber-800 border-amber-300 text-stone-950 font-black shadow-md ring-1 ring-amber-400'
+                          : isRolled
+                          ? 'bg-[#22160d] border-amber-900/80 text-amber-200 hover:bg-[#2c1d12] hover:border-amber-700/80'
+                          : 'bg-[#150d08] border-stone-800 text-stone-400 hover:border-amber-700/80 hover:text-stone-300'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* 2. Roll <STAT> Button: Single line */}
+              <div className="w-full">
+                {allRolled ? (
+                  <button
+                    id="btn-reveal-calling-destiny"
+                    onClick={handleRevealDestiny}
+                    className="w-full py-2.5 px-4 bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 hover:from-yellow-300 text-stone-950 font-serif font-black rounded-lg shadow-xl text-xs sm:text-sm cursor-pointer transition-all transform hover:scale-[1.01] active:scale-[0.99] border-2 border-yellow-200 animate-pulse text-center"
+                  >
+                    Reveal Your Calling & Destiny ➔
+                  </button>
+                ) : isRollingCurrentStat ? (
+                  <div className="w-full py-2 px-4 bg-[#26170d] text-amber-300 font-serif font-bold rounded-lg border border-amber-600/80 shadow text-xs sm:text-sm text-center animate-pulse flex items-center justify-center gap-2">
+                    <Dices className="w-4 h-4 animate-spin text-amber-400" />
+                    <span>Rolling {activeStatDef.label}...</span>
+                  </div>
+                ) : isCurrentStatRolled ? (
+                  <div className="flex gap-1.5 w-full">
+                    {nextStatToRoll ? (
+                      <button
+                        id="btn-roll-next-attribute"
+                        onClick={() => handleRollSingleStat(nextStatToRoll.key)}
+                        className="flex-1 py-2 px-4 bg-gradient-to-r from-amber-600 via-amber-500 to-amber-600 hover:from-amber-500 text-stone-950 font-serif font-black rounded-lg shadow-lg border border-amber-300 text-xs sm:text-sm text-center cursor-pointer transition-all"
+                      >
+                        Roll {nextStatToRoll.label} (4d6 drop lowest)
+                      </button>
+                    ) : null}
+
+                    {fateTokens > 0 && (
+                      <button
+                        id={`btn-reroll-active-${activeStatKey}`}
+                        onClick={() => handleRollSingleStat(activeStatKey, true)}
+                        className="px-3 py-2 bg-purple-950 hover:bg-purple-900 text-purple-200 border border-purple-600 rounded-lg font-mono text-xs font-bold cursor-pointer shadow shrink-0 flex items-center gap-1"
+                        title={`Spend 1 Fate Token to reroll ${activeStatDef.label}`}
+                      >
+                        <RefreshCw className="w-3 h-3 text-purple-400" />
+                        <span>Reroll {activeStatKey}</span>
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <button
+                    id={`btn-roll-attribute-${activeStatKey}`}
+                    onClick={() => handleRollSingleStat(activeStatKey)}
+                    className="w-full py-2 px-4 bg-gradient-to-r from-amber-600 via-amber-500 to-amber-600 hover:from-amber-500 hover:to-amber-400 text-stone-950 font-serif font-black rounded-lg shadow-lg text-xs sm:text-sm text-center cursor-pointer transition-all border border-amber-300/80"
+                  >
+                    Roll {activeStatDef.label} (4d6 drop lowest)
+                  </button>
+                )}
+              </div>
+
+              {/* 3. Dice Roll Pool: Just the actual dice, no text! */}
+              <div className="flex items-center justify-center gap-2.5 sm:gap-3 py-0.5">
+                {displayDice.map((dVal, idx) => (
+                  <PipDie
+                    key={idx}
+                    value={dVal}
+                    isDropped={droppedIndexToShow !== null && idx === droppedIndexToShow}
+                    isRolling={isRollingCurrentStat && rollStage === 'tumbling'}
+                  />
+                ))}
+              </div>
+            </>
+          )}
+
+          {currentStep === 'DESTINY_REVEAL' && (
+            <>
+              {/* 1. Sub-bar: Reroll all / Fate tokens summary */}
+              <div className="flex items-center justify-between text-xs font-mono px-1">
+                <button
+                  onClick={handleRestartRolls}
+                  className="text-stone-400 hover:text-amber-200 transition-colors flex items-center gap-1 cursor-pointer"
+                >
+                  <RefreshCw className="w-3 h-3 text-stone-400" />
+                  <span>Reroll All Attributes</span>
+                </button>
+                <span className="text-amber-300 font-bold">
+                  {selectedClass.name} • {destinyDiagnosis?.fateTokenCount ?? 1} Fate Tokens
+                </span>
+              </div>
+
+              {/* 2. Primary CTA: "Accept calling" */}
+              <button
+                id="btn-confirm-destiny"
+                onClick={() => setCurrentStep('BOON_ROLL')}
+                className="w-full py-2.5 px-4 bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 hover:from-yellow-300 text-stone-950 font-serif font-black rounded-lg shadow-xl text-xs sm:text-sm cursor-pointer transition-all transform hover:scale-[1.01] active:scale-[0.99] border-2 border-yellow-200 flex items-center justify-center gap-2"
+              >
+                <span>Accept calling</span>
+                <ChevronRight className="w-4 h-4 text-stone-950" />
+              </button>
+
+              {/* 3. Subtext matching Step 1 footer height */}
+              <div className="flex items-center justify-center gap-2 text-xs text-stone-400 font-mono py-0.5">
+                <span>Class Calling Assigned • Step 2 of 4</span>
+              </div>
+            </>
+          )}
+
+          {currentStep === 'BOON_ROLL' && (
+            <>
+              {/* 1. Sub-bar: Back to calling / Boon status */}
+              <div className="flex items-center justify-between text-xs font-mono px-1">
+                <button
+                  onClick={() => setCurrentStep('DESTINY_REVEAL')}
+                  className="text-stone-400 hover:text-amber-200 transition-colors flex items-center gap-1 cursor-pointer"
+                >
+                  ← Back to Calling
+                </button>
+                <span className="text-amber-300 font-bold truncate max-w-[220px]">
+                  {hasRolledBoon && rolledBoon ? rolledBoon.name : '1d6 Procedural Heirloom'}
+                </span>
+              </div>
+
+              {/* 2. Primary CTA: "Roll heirloom" or "Finalize Adventurer" */}
+              {!hasRolledBoon ? (
+                <button
+                  id="btn-roll-heirloom-footer"
+                  onClick={() => setBoonTriggerRoll((n) => n + 1)}
+                  disabled={isBoonRolling}
+                  className="w-full py-2.5 px-4 bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 hover:from-yellow-300 text-stone-950 font-serif font-black rounded-lg shadow-xl text-xs sm:text-sm cursor-pointer transition-all transform hover:scale-[1.01] active:scale-[0.99] border-2 border-yellow-200 flex items-center justify-center gap-2"
+                >
+                  <Dices className={`w-4 h-4 ${isBoonRolling ? 'animate-spin text-stone-950' : ''}`} />
+                  <span>{isBoonRolling ? 'Rolling Heirloom...' : 'Roll heirloom'}</span>
+                </button>
+              ) : (
+                <div className="flex items-center gap-1.5 w-full">
+                  <button
+                    id="btn-reroll-heirloom-footer"
+                    onClick={() => {
+                      if (fateTokens > 0) {
+                        setFateTokens((t) => Math.max(0, t - 1));
+                      }
+                      setBoonTriggerRoll((n) => n + 1);
+                    }}
+                    disabled={isBoonRolling}
+                    className="px-3 py-2 bg-[#22160d] hover:bg-[#2c1d12] border border-amber-900/80 text-amber-200 rounded-lg font-mono text-xs font-bold cursor-pointer shadow shrink-0 flex items-center gap-1"
+                    title="Reroll on the heirloom table"
+                  >
+                    <RefreshCw className={`w-3 h-3 text-amber-400 ${isBoonRolling ? 'animate-spin' : ''}`} />
+                    <span>Roll again</span>
+                  </button>
+                  <button
+                    id="btn-confirm-boon"
+                    onClick={() => setCurrentStep('FINALIZE')}
+                    className="flex-1 py-2 px-4 bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 hover:from-yellow-300 text-stone-950 font-serif font-black rounded-lg shadow-lg text-xs sm:text-sm text-center cursor-pointer transition-all border border-yellow-200 flex items-center justify-center gap-2"
+                  >
+                    <span>Finalize Adventurer Details</span>
+                    <ChevronRight className="w-4 h-4 text-stone-950" />
+                  </button>
+                </div>
+              )}
+
+              {/* 3. Subtext matching Step 1 footer height */}
+              <div className="flex items-center justify-center gap-2 text-xs text-stone-400 font-mono py-0.5">
+                {hasRolledBoon ? (
+                  <span className="text-emerald-400">Heirloom Confirmed • Ready to Embark</span>
+                ) : (
+                  <span>Roll 1d6 on the procedural heirloom table above</span>
+                )}
+              </div>
+            </>
+          )}
+
+          {currentStep === 'FINALIZE' && (
+            <>
+              {/* 1. Sub-bar: Back to heirloom / Name summary */}
+              <div className="flex items-center justify-between text-xs font-mono px-1">
+                <button
+                  onClick={() => setCurrentStep('BOON_ROLL')}
+                  className="text-stone-400 hover:text-amber-200 transition-colors flex items-center gap-1 cursor-pointer"
+                >
+                  ← Back to Heirloom
+                </button>
+                <span className="text-amber-300 font-bold truncate">
+                  {characterName || 'Hero'} the {selectedClass.name}
+                </span>
+              </div>
+
+              {/* 2. Primary CTA: "Enter the dungeon" */}
+              <button
+                id="btn-embark-adventure"
+                onClick={handleStartAdventure}
+                className="w-full py-2.5 px-4 bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 hover:from-yellow-300 text-stone-950 font-serif font-black rounded-lg shadow-xl text-xs sm:text-sm cursor-pointer transition-all transform hover:scale-[1.01] active:scale-[0.99] border-2 border-yellow-200 flex items-center justify-center gap-2 animate-pulse"
+              >
+                <UserCheck className="w-4 h-4 text-stone-950" />
+                <span>Enter the dungeon</span>
+                <ChevronRight className="w-4 h-4 text-stone-950" />
+              </button>
+
+              {/* 3. Subtext matching Step 1 footer height */}
+              <div className="flex items-center justify-center gap-3 text-xs font-mono text-amber-300/80 py-0.5">
+                <span>Catacombs of Ur • Floor 1</span>
+                <span>•</span>
+                <span>{selectedClass.startingGold + (rolledBoon?.type === 'gold' ? rolledBoon.value : 0)} Gold</span>
+                <span>•</span>
+                <span>{fateTokens} Fate Tokens</span>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
     </div>
   );
 };
