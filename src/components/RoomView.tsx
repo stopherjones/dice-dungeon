@@ -366,31 +366,211 @@ export const RoomView: React.FC<RoomViewProps> = ({
 
   return (
     <div ref={containerRef} id="room-view-container" className="max-w-4xl mx-auto space-y-4">
-      {/* Room Narrative & Atmosphere Card */}
-      <div className="bg-[#241a12] border-2 border-[#735438] rounded-xl p-4 md:p-5 shadow-2xl relative overflow-hidden">
-        <div className="flex items-center justify-between border-b border-[#4d3723] pb-2.5 mb-3">
-          <div className="flex items-center gap-2">
-            <span className="font-mono text-xs bg-[#19110a] text-amber-300 px-2 py-0.5 rounded border border-[#4d341f]">
-              Chamber [{room.gridX + 1},{room.gridY + 1}]
-            </span>
-            <h2 className="text-lg md:text-xl font-serif font-black text-[#f5e4c6]">{room.title}</h2>
+      {/* If Trap Chamber: Render Single Merged Unified Trap Card */}
+      {room.trap ? (
+        <div
+          className={`border-2 rounded-xl p-4 md:p-5 shadow-2xl relative overflow-hidden text-stone-200 transition-colors ${
+            room.trap.disarmed
+              ? 'bg-[#1b2419] border-emerald-700/70'
+              : room.trap.triggered
+              ? 'bg-[#2b1712] border-red-600/80 ring-1 ring-red-500/40'
+              : 'bg-[#241a12] border-yellow-700/70'
+          }`}
+        >
+          {/* Header Row: Title on Left, Badges on Right */}
+          <div className="flex items-start justify-between gap-3 border-b border-[#4d3723] pb-2.5 mb-3">
+            <div>
+              <h2 className="text-lg md:text-xl font-serif font-black text-[#f5e4c6]">
+                {room.title}
+              </h2>
+            </div>
+
+            {/* Badges on Right: TRAP pill with DC pill underneath, or DISARMED on top */}
+            <div className="flex flex-col items-end gap-1 shrink-0">
+              {room.trap.disarmed ? (
+                <span className="text-xs font-serif font-bold text-emerald-300 capitalize bg-emerald-950 px-2.5 py-0.5 rounded border border-emerald-700 shadow-sm">
+                  DISARMED
+                </span>
+              ) : (
+                <>
+                  <span
+                    className={`text-xs font-serif capitalize px-2.5 py-0.5 rounded border ${
+                      room.trap.triggered
+                        ? 'bg-red-950 text-red-300 border-red-700 font-bold'
+                        : 'bg-[#160f09] text-stone-400 border-[#3b2716]'
+                    }`}
+                  >
+                    {room.trap.triggered ? 'TRAP SPRUNG' : 'TRAP'}
+                  </span>
+                  <span
+                    className={`text-[11px] font-mono px-2 py-0.5 rounded border font-bold ${
+                      room.trap.triggered
+                        ? 'bg-red-950 text-red-300 border-red-800/80'
+                        : 'bg-[#181109] text-yellow-300 border-yellow-800/60'
+                    }`}
+                  >
+                    DC {room.trap.difficulty}
+                  </span>
+                </>
+              )}
+            </div>
           </div>
 
-          <span className="text-xs font-serif text-stone-400 capitalize bg-[#160f09] px-2.5 py-0.5 rounded border border-[#3b2716]">
-            {room.isBossRoom ? 'Boss & Descent Chamber' : room.type.replace('_', ' ')}
-          </span>
+          {/* Narrative & Atmosphere Text (No coordinates, no duplicates) */}
+          <p className="text-sm font-serif text-stone-300 leading-relaxed mb-2">{room.description}</p>
+          <p className="text-xs font-serif text-[#d6b78d] italic mb-3.5">{room.flavorText}</p>
+
+          {/* State-specific Body: Unsuccessful vs First Entering vs Successful */}
+          {!room.trap.disarmed ? (
+            <div className="space-y-3">
+              {/* Trap Sprung Status Banner with red highlight */}
+              {room.trap.triggered && (
+                <div className="p-2.5 bg-red-950/80 border border-red-600/70 rounded-lg text-xs text-red-200 font-serif flex items-start gap-2 shadow-sm">
+                  <AlertTriangle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+                  <div>
+                    <strong>Trap Sprung & Still Active:</strong> The hazard triggered on a previous attempt and remains armed! You must disarm it to proceed past it, or retreat.
+                    {eventMessage && <div className="mt-1 text-red-300 font-bold">{eventMessage}</div>}
+                  </div>
+                </div>
+              )}
+
+              <div className="text-[11px] font-serif text-amber-200/90 italic">
+                {room.trap.triggered
+                  ? 'Attempt to deactivate the active trap again:'
+                  : 'Choose your skill approach to deactivate the trap:'}
+              </div>
+
+              {/* 4 Skill Approach Buttons */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {/* Dexterity Disarm */}
+                <button
+                  id="btn-trap-dex"
+                  disabled={isRolling}
+                  onClick={() => handleDisarmTrap('DEX')}
+                  className="p-2 bg-[#332213] hover:bg-[#48301c] text-amber-200 border border-[#7a5836] rounded text-xs font-serif font-bold flex items-center justify-between cursor-pointer transition-colors disabled:opacity-50"
+                >
+                  <div className="flex items-center gap-1.5">
+                    <Zap className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+                    <span className="text-left">Dexterity Disarm</span>
+                  </div>
+                  <span className="font-mono text-[10px] text-cyan-300">
+                    {getStatModifier(heroStats.DEX) >= 0
+                      ? `+${getStatModifier(heroStats.DEX)}`
+                      : getStatModifier(heroStats.DEX)}
+                  </span>
+                </button>
+
+                {/* Intelligence Mechanism Analysis */}
+                <button
+                  id="btn-trap-int"
+                  disabled={isRolling}
+                  onClick={() => handleDisarmTrap('INT')}
+                  className="p-2 bg-[#332213] hover:bg-[#48301c] text-amber-200 border border-[#7a5836] rounded text-xs font-serif font-bold flex items-center justify-between cursor-pointer transition-colors disabled:opacity-50"
+                >
+                  <div className="flex items-center gap-1.5">
+                    <Wand2 className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+                    <span className="text-left">Intelligence Analysis</span>
+                  </div>
+                  <span className="font-mono text-[10px] text-purple-300">
+                    {getStatModifier(heroStats.INT) >= 0
+                      ? `+${getStatModifier(heroStats.INT)}`
+                      : getStatModifier(heroStats.INT)}
+                  </span>
+                </button>
+
+                {/* Strength Jam Mechanism */}
+                <button
+                  id="btn-trap-str"
+                  disabled={isRolling}
+                  onClick={() => handleDisarmTrap('STR')}
+                  className="p-2 bg-[#332213] hover:bg-[#48301c] text-amber-200 border border-[#7a5836] rounded text-xs font-serif font-bold flex items-center justify-between cursor-pointer transition-colors disabled:opacity-50"
+                >
+                  <div className="flex items-center gap-1.5">
+                    <Hammer className="w-3.5 h-3.5 text-orange-400 shrink-0" />
+                    <span className="text-left">Strength Jam / Wedge</span>
+                  </div>
+                  <span className="font-mono text-[10px] text-orange-300">
+                    {getStatModifier(heroStats.STR) >= 0
+                      ? `+${getStatModifier(heroStats.STR)}`
+                      : getStatModifier(heroStats.STR)}
+                  </span>
+                </button>
+
+                {/* Luck Evasion */}
+                <button
+                  id="btn-trap-lck"
+                  disabled={isRolling}
+                  onClick={() => handleDisarmTrap('LCK')}
+                  className="p-2 bg-[#332213] hover:bg-[#48301c] text-amber-200 border border-[#7a5836] rounded text-xs font-serif font-bold flex items-center justify-between cursor-pointer transition-colors disabled:opacity-50"
+                >
+                  <div className="flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-yellow-400 shrink-0" />
+                    <span className="text-left">Fortune & Luck Leap</span>
+                  </div>
+                  <span className="font-mono text-[10px] text-yellow-300">
+                    {getStatModifier(heroStats.LCK) >= 0
+                      ? `+${getStatModifier(heroStats.LCK)}`
+                      : getStatModifier(heroStats.LCK)}
+                  </span>
+                </button>
+              </div>
+
+              {/* Retreat option if entered from another room */}
+              {previousRoomId && previousRoomId !== room.id && (
+                <div className="pt-2 border-t border-[#4d3723] flex items-center justify-between">
+                  <span className="text-[11px] text-stone-400 font-serif italic">
+                    Can't bypass? You can retreat safely:
+                  </span>
+                  <button
+                    id="btn-retreat-from-trap"
+                    onClick={() => onNavigateToRoom(previousRoomId)}
+                    className="px-3 py-1.5 bg-[#2a1c12] hover:bg-[#3d291b] text-amber-200 border border-[#6b4724] rounded text-xs font-serif font-bold flex items-center gap-1.5 cursor-pointer shadow-sm transition-colors"
+                  >
+                    <Footprints className="w-3.5 h-3.5 text-amber-400" />
+                    <span>Retreat the way you came ➔</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            /* Successful Roll: Green Status Format Text */
+            <div className="space-y-2">
+              <div className="p-3 bg-[#142617] border border-emerald-600/70 rounded-lg text-xs text-emerald-300 font-serif flex items-center justify-between gap-2 shadow-sm">
+                <div className="flex items-center gap-2">
+                  <span className="text-emerald-400 font-bold">✓</span>
+                  <span className="font-bold">Trap mechanism disarmed and safe to pass.</span>
+                </div>
+                {eventMessage && (
+                  <span className="text-[11px] text-amber-300 font-mono font-bold">
+                    +20 XP Gained
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
         </div>
+      ) : (
+        /* Standard Room Narrative Card for Non-Trap Rooms */
+        <div className="bg-[#241a12] border-2 border-[#735438] rounded-xl p-4 md:p-5 shadow-2xl relative overflow-hidden">
+          <div className="flex items-center justify-between border-b border-[#4d3723] pb-2.5 mb-3">
+            <h2 className="text-lg md:text-xl font-serif font-black text-[#f5e4c6]">{room.title}</h2>
 
-        <p className="text-sm font-serif text-stone-300 leading-relaxed mb-2">{room.description}</p>
-        <p className="text-xs font-serif text-[#d6b78d] italic">{room.flavorText}</p>
-
-        {/* Dynamic Event Result Box */}
-        {eventMessage && (
-          <div className="mt-3 p-2.5 bg-[#17110a] border border-[#6b4e2d] rounded-md font-serif text-xs text-amber-200 animate-fade-in flex items-center justify-between">
-            <span>{eventMessage}</span>
+            <span className="text-xs font-serif text-stone-400 capitalize bg-[#160f09] px-2.5 py-0.5 rounded border border-[#3b2716]">
+              {room.isBossRoom ? 'Boss & Descent Chamber' : room.type.replace('_', ' ')}
+            </span>
           </div>
-        )}
-      </div>
+
+          <p className="text-sm font-serif text-stone-300 leading-relaxed mb-2">{room.description}</p>
+          <p className="text-xs font-serif text-[#d6b78d] italic">{room.flavorText}</p>
+
+          {/* Dynamic Event Result Box */}
+          {eventMessage && (
+            <div className="mt-3 p-2.5 bg-[#17110a] border border-[#6b4e2d] rounded-md font-serif text-xs text-amber-200 animate-fade-in flex items-center justify-between">
+              <span>{eventMessage}</span>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Main Room Interactive Encounter Area */}
       <div className="flex flex-col gap-4">
@@ -510,146 +690,6 @@ export const RoomView: React.FC<RoomViewProps> = ({
               ) : (
                 <div className="text-xs text-stone-400 font-serif italic py-1">
                   The chest lies empty, its treasures collected into your backpack.
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* 3. Trap Encounter */}
-          {room.trap && (
-            <div className={`border-2 rounded-xl p-4 shadow-lg text-stone-200 ${
-              room.trap.disarmed
-                ? 'bg-[#1b2419] border-emerald-700/70'
-                : room.trap.triggered
-                ? 'bg-[#2b1712] border-red-600/80 ring-1 ring-red-500/40'
-                : 'bg-[#241a12] border-yellow-700/70'
-            }`}>
-              <div className="flex items-center justify-between gap-2 mb-1.5">
-                <div className="flex items-center gap-2 text-yellow-400 font-serif font-bold text-sm">
-                  <AlertTriangle className={`w-5 h-5 shrink-0 ${room.trap.triggered && !room.trap.disarmed ? 'text-red-400 animate-pulse' : 'text-yellow-500'}`} />
-                  <span>{room.trap.name}</span>
-                </div>
-                <span className={`text-[11px] font-mono px-2 py-0.5 rounded border ${
-                  room.trap.disarmed
-                    ? 'bg-emerald-950 text-emerald-300 border-emerald-700'
-                    : room.trap.triggered
-                    ? 'bg-red-950 text-red-300 border-red-700'
-                    : 'bg-[#181109] text-yellow-300 border-yellow-800/60'
-                }`}>
-                  {room.trap.disarmed ? 'DISARMED' : `DC ${room.trap.difficulty}`}
-                </span>
-              </div>
-              <p className="text-xs text-stone-300 font-serif mb-2.5">{room.trap.description}</p>
-
-              {!room.trap.disarmed ? (
-                <div className="space-y-2.5">
-                  {room.trap.triggered && (
-                    <div className="p-2.5 bg-red-950/80 border border-red-600/70 rounded-lg text-xs text-red-200 font-serif flex items-start gap-2">
-                      <AlertTriangle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
-                      <div>
-                        <strong>Trap Sprung & Still Active:</strong> The hazard triggered on a previous attempt and remains armed! You must disarm it to proceed past it, or you can retreat back the way you came.
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="text-[11px] font-serif text-amber-200/90 italic">
-                    {room.trap.triggered ? 'Attempt to deactivate the active trap again:' : 'Choose your skill approach to deactivate the trap:'}
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {/* Dexterity Disarm */}
-                    <button
-                      id="btn-trap-dex"
-                      disabled={isRolling}
-                      onClick={() => handleDisarmTrap('DEX')}
-                      className="p-2 bg-[#332213] hover:bg-[#48301c] text-amber-200 border border-[#7a5836] rounded text-xs font-serif font-bold flex items-center justify-between cursor-pointer transition-colors disabled:opacity-50"
-                    >
-                      <div className="flex items-center gap-1.5">
-                        <Zap className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
-                        <span className="text-left">Dexterity Disarm</span>
-                      </div>
-                      <span className="font-mono text-[10px] text-cyan-300">
-                        {getStatModifier(heroStats.DEX) >= 0
-                          ? `+${getStatModifier(heroStats.DEX)}`
-                          : getStatModifier(heroStats.DEX)}
-                      </span>
-                    </button>
-
-                    {/* Intelligence Mechanism Analysis */}
-                    <button
-                      id="btn-trap-int"
-                      disabled={isRolling}
-                      onClick={() => handleDisarmTrap('INT')}
-                      className="p-2 bg-[#332213] hover:bg-[#48301c] text-amber-200 border border-[#7a5836] rounded text-xs font-serif font-bold flex items-center justify-between cursor-pointer transition-colors disabled:opacity-50"
-                    >
-                      <div className="flex items-center gap-1.5">
-                        <Wand2 className="w-3.5 h-3.5 text-purple-400 shrink-0" />
-                        <span className="text-left">Intelligence Analysis</span>
-                      </div>
-                      <span className="font-mono text-[10px] text-purple-300">
-                        {getStatModifier(heroStats.INT) >= 0
-                          ? `+${getStatModifier(heroStats.INT)}`
-                          : getStatModifier(heroStats.INT)}
-                      </span>
-                    </button>
-
-                    {/* Strength Jam Mechanism */}
-                    <button
-                      id="btn-trap-str"
-                      disabled={isRolling}
-                      onClick={() => handleDisarmTrap('STR')}
-                      className="p-2 bg-[#332213] hover:bg-[#48301c] text-amber-200 border border-[#7a5836] rounded text-xs font-serif font-bold flex items-center justify-between cursor-pointer transition-colors disabled:opacity-50"
-                    >
-                      <div className="flex items-center gap-1.5">
-                        <Hammer className="w-3.5 h-3.5 text-orange-400 shrink-0" />
-                        <span className="text-left">Strength Jam / Wedge</span>
-                      </div>
-                      <span className="font-mono text-[10px] text-orange-300">
-                        {getStatModifier(heroStats.STR) >= 0
-                          ? `+${getStatModifier(heroStats.STR)}`
-                          : getStatModifier(heroStats.STR)}
-                      </span>
-                    </button>
-
-                    {/* Luck Evasion */}
-                    <button
-                      id="btn-trap-lck"
-                      disabled={isRolling}
-                      onClick={() => handleDisarmTrap('LCK')}
-                      className="p-2 bg-[#332213] hover:bg-[#48301c] text-amber-200 border border-[#7a5836] rounded text-xs font-serif font-bold flex items-center justify-between cursor-pointer transition-colors disabled:opacity-50"
-                    >
-                      <div className="flex items-center gap-1.5">
-                        <Sparkles className="w-3.5 h-3.5 text-yellow-400 shrink-0" />
-                        <span className="text-left">Fortune & Luck Leap</span>
-                      </div>
-                      <span className="font-mono text-[10px] text-yellow-300">
-                        {getStatModifier(heroStats.LCK) >= 0
-                          ? `+${getStatModifier(heroStats.LCK)}`
-                          : getStatModifier(heroStats.LCK)}
-                      </span>
-                    </button>
-                  </div>
-
-                  {/* Retreat option if entered from another room */}
-                  {previousRoomId && previousRoomId !== room.id && (
-                    <div className="pt-2 border-t border-[#4d3723] flex items-center justify-between">
-                      <span className="text-[11px] text-stone-400 font-serif italic">
-                        Can't bypass? You can retreat safely:
-                      </span>
-                      <button
-                        id="btn-retreat-from-trap"
-                        onClick={() => onNavigateToRoom(previousRoomId)}
-                        className="px-3 py-1.5 bg-[#2a1c12] hover:bg-[#3d291b] text-amber-200 border border-[#6b4724] rounded text-xs font-serif font-bold flex items-center gap-1.5 cursor-pointer shadow-sm transition-colors"
-                      >
-                        <Footprints className="w-3.5 h-3.5 text-amber-400" />
-                        <span>Retreat the way you came ➔</span>
-                      </button>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div className="text-xs text-emerald-400 font-serif italic">
-                  ✓ Trap mechanism disarmed and safe to pass.
                 </div>
               )}
             </div>

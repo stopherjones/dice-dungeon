@@ -75,20 +75,20 @@ const PANEL_NAV_CONFIG: Record<
   }
 > = {
   backpack: {
-    prev: { target: 'codex', label: 'Swipe Left for Rules Codex' },
-    next: { target: 'adventurer', label: 'Swipe Right for Adventurer' },
+    prev: { target: 'codex', label: 'Rules' },
+    next: { target: 'adventurer', label: 'Adventurer' },
   },
   adventurer: {
-    prev: { target: 'backpack', label: 'Swipe Left for Backpack & Equipment' },
-    next: { target: 'map', label: 'Swipe Right for Dungeon Map & Chambers' },
+    prev: { target: 'backpack', label: 'Backpack' },
+    next: { target: 'map', label: 'Map' },
   },
   map: {
-    prev: { target: 'adventurer', label: 'Swipe Left for Adventurer Details' },
-    next: { target: 'codex', label: 'Swipe Right for Rules Codex' },
+    prev: { target: 'adventurer', label: 'Adventurer' },
+    next: { target: 'codex', label: 'Rules' },
   },
   codex: {
-    prev: { target: 'map', label: 'Swipe Left for Dungeon Map & Chambers' },
-    next: { target: 'backpack', label: 'Swipe Right for Backpack & Equipment' },
+    prev: { target: 'map', label: 'Map' },
+    next: { target: 'backpack', label: 'Backpack' },
   },
 };
 
