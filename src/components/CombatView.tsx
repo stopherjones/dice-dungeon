@@ -37,6 +37,7 @@ import {
   StatusEffect,
 } from '../types/game';
 import { ITEMS_DATABASE } from '../data/items';
+import { getWeaponAcReduction } from '../utils/inventory';
 import { DiceVisualizer } from './DiceVisualizer';
 import { rollDice, getStatModifier, parseAndRollFormula, RollResult } from '../utils/dice';
 import { sounds } from '../utils/audio';
@@ -175,6 +176,9 @@ export const CombatView: React.FC<CombatViewProps> = ({
   const weaponBonus = weaponItemBonus + weaponStatMod;
   const totalWeaponAtkMod = weaponStatMod + weaponItemBonus + buffAttackBonus;
   const weaponStatBreakdown = `${weaponStatMod >= 0 ? `+${weaponStatMod}` : weaponStatMod} ${weaponStatKey}${weaponItemBonus ? ` +${weaponItemBonus} Wpn` : ''}${buffAttackBonus ? ` +${buffAttackBonus} Buff` : ''}`;
+  const weaponAcReduction = primaryWeapon ? getWeaponAcReduction(primaryWeapon, hero.level) : 0;
+  const effectiveMonsterAc = Math.max(1, monster.armorClass - weaponAcReduction);
+  const acReductionBreakdown = weaponAcReduction > 0 ? ` (Base AC ${monster.armorClass} - ${weaponAcReduction} Sunder)` : '';
 
   // Dynamic Defensive Guard & Counter-Attack Profile based on Hero Class & Equipment
   const getGuardProfile = () => {
@@ -351,10 +355,10 @@ export const CombatView: React.FC<CombatViewProps> = ({
     } else {
       boxLabel = 'Damage';
       if (isAutoHit) {
-        rollSubtitle = `Guaranteed Hit (${statMod >= 0 ? `+${statMod}` : statMod} ${statKey} Force) vs AC ${monster.armorClass}`;
+        rollSubtitle = `Guaranteed Hit (${statMod >= 0 ? `+${statMod}` : statMod} ${statKey} Force) vs AC ${effectiveMonsterAc}${acReductionBreakdown}`;
       } else {
         const modBreakdown = `${statMod >= 0 ? `+${statMod}` : statMod} ${statKey}${extraAccuracyLabel ? ` ${extraAccuracyLabel}` : ''}`;
-        rollSubtitle = `Roll: 1d20 ${totalAtkMod >= 0 ? `+ ${totalAtkMod}` : totalAtkMod} (${modBreakdown}) vs AC ${monster.armorClass}`;
+        rollSubtitle = `Roll: 1d20 ${totalAtkMod >= 0 ? `+ ${totalAtkMod}` : totalAtkMod} (${modBreakdown}) vs AC ${effectiveMonsterAc}${acReductionBreakdown}`;
       }
 
       let flavor = 'Special Attack';
@@ -424,7 +428,7 @@ export const CombatView: React.FC<CombatViewProps> = ({
     setCurrentRoll(atkRoll);
 
     setTimeout(() => {
-      const isHit = atkRoll.isCrit || (!atkRoll.isFumble && atkRoll.total >= monster.armorClass);
+      const isHit = atkRoll.isCrit || (!atkRoll.isFumble && atkRoll.total >= effectiveMonsterAc);
       
       if (atkRoll.isFumble) {
         combat.heroStumbled = true;
@@ -447,8 +451,8 @@ export const CombatView: React.FC<CombatViewProps> = ({
         setActionSummary({
           title: atkRoll.isFumble ? 'CRITICAL FUMBLE! (Natural 1)' : 'ATTACK MISSED',
           details: atkRoll.isFumble
-            ? `Attack Roll: [1] (Natural 1 Fumble!) ${atkRoll.modifier >= 0 ? `+ ${atkRoll.modifier}` : atkRoll.modifier} (${weaponStatBreakdown}${staggerBonus ? ' +2 Staggered' : ''}) = ${atkRoll.total} vs Enemy AC ${monster.armorClass}.\n\n💥 STUMBLED & VULNERABLE: You overextended and lost your balance! You FORFEIT your next combat turn while recovering your stance, giving ${monster.name} a free round to strike!`
-            : `Attack Roll: [${atkRoll.individualRolls[0]}] ${atkRoll.modifier >= 0 ? `+ ${atkRoll.modifier}` : atkRoll.modifier} (${weaponStatBreakdown}${staggerBonus ? ' +2 Staggered' : ''}) = ${atkRoll.total} vs Enemy AC ${monster.armorClass}. The blow failed to penetrate!`,
+            ? `Attack Roll: [1] (Natural 1 Fumble!) ${atkRoll.modifier >= 0 ? `+ ${atkRoll.modifier}` : atkRoll.modifier} (${weaponStatBreakdown}${staggerBonus ? ' +2 Staggered' : ''}) = ${atkRoll.total} vs Enemy AC ${effectiveMonsterAc}${acReductionBreakdown}.\n\n💥 STUMBLED & VULNERABLE: You overextended and lost your balance! You FORFEIT your next combat turn while recovering your stance, giving ${monster.name} a free round to strike!`
+            : `Attack Roll: [${atkRoll.individualRolls[0]}] ${atkRoll.modifier >= 0 ? `+ ${atkRoll.modifier}` : atkRoll.modifier} (${weaponStatBreakdown}${staggerBonus ? ' +2 Staggered' : ''}) = ${atkRoll.total} vs Enemy AC ${effectiveMonsterAc}${acReductionBreakdown}. The blow failed to penetrate!`,
           isHit: false,
           isFumble: atkRoll.isFumble,
           type: 'hero',
@@ -458,13 +462,13 @@ export const CombatView: React.FC<CombatViewProps> = ({
           atkRoll.isFumble ? `Attack Fumble (Natural 1)` : `Attack with ${primaryWeapon?.name || 'Weapon'} (Miss)`,
           atkRoll.isFumble
             ? `Rolled Natural 1! Critical Fumble — Hero is stumbled and forfeits next turn!`
-            : `Rolled [${atkRoll.individualRolls[0]}]+${atkRoll.modifier}=${atkRoll.total} vs AC ${monster.armorClass}. Missed!`,
+            : `Rolled [${atkRoll.individualRolls[0]}]+${atkRoll.modifier}=${atkRoll.total} vs AC ${effectiveMonsterAc}${acReductionBreakdown}. Missed!`,
           {
             diceType: 'd20',
             rolls: atkRoll.individualRolls,
             modifier: atkRoll.modifier,
             total: atkRoll.total,
-            targetValue: monster.armorClass,
+            targetValue: effectiveMonsterAc,
             isFumble: atkRoll.isFumble,
           }
         );
@@ -473,8 +477,8 @@ export const CombatView: React.FC<CombatViewProps> = ({
         setActionSummary({
           title: atkRoll.isCrit ? 'CRITICAL HIT! (Natural 20)' : 'ATTACK HIT!',
           details: atkRoll.isCrit
-            ? `Attack Roll: [20] (Natural 20 Critical!) ${atkRoll.modifier >= 0 ? `+ ${atkRoll.modifier}` : atkRoll.modifier} (${weaponStatBreakdown}${staggerBonus ? ' +2 Staggered' : ''}) = ${atkRoll.total} vs Enemy AC ${monster.armorClass}.\n\n⚔️ CRITICAL STRIKE: Maximum penetration! Your upcoming damage roll will be DOUBLED (2x Damage Multiplier + 3 Brutal Strike Bonus)!`
-            : `Attack Roll: [${atkRoll.individualRolls[0]}] ${atkRoll.modifier >= 0 ? `+ ${atkRoll.modifier}` : atkRoll.modifier} (${weaponStatBreakdown}${staggerBonus ? ' +2 Staggered' : ''}) = ${atkRoll.total} vs Enemy AC ${monster.armorClass}. Strike connected! Proceed to roll damage dice.`,
+            ? `Attack Roll: [20] (Natural 20 Critical!) ${atkRoll.modifier >= 0 ? `+ ${atkRoll.modifier}` : atkRoll.modifier} (${weaponStatBreakdown}${staggerBonus ? ' +2 Staggered' : ''}) = ${atkRoll.total} vs Enemy AC ${effectiveMonsterAc}${acReductionBreakdown}.\n\n⚔️ CRITICAL STRIKE: Maximum penetration! Your upcoming damage roll will be DOUBLED (2x Damage Multiplier + 3 Brutal Strike Bonus)!`
+            : `Attack Roll: [${atkRoll.individualRolls[0]}] ${atkRoll.modifier >= 0 ? `+ ${atkRoll.modifier}` : atkRoll.modifier} (${weaponStatBreakdown}${staggerBonus ? ' +2 Staggered' : ''}) = ${atkRoll.total} vs Enemy AC ${effectiveMonsterAc}${acReductionBreakdown}. Strike connected! Proceed to roll damage dice.`,
           isHit: true,
           isCrit: atkRoll.isCrit,
           type: 'hero',
@@ -529,13 +533,13 @@ export const CombatView: React.FC<CombatViewProps> = ({
         pendingAttack.isCrit ? `Critical Hit with ${pendingAttack.name}` : `Hit with ${pendingAttack.name}`,
         pendingAttack.isCrit
           ? `CRITICAL HIT! Rolled ${baseDmg} base damage. Applied 2x Multiplier + 3 Brutal = ${dmg} total damage!`
-          : `Attack roll ${pendingAttack.atkRoll.total} vs AC ${monster.armorClass}. Dealt ${dmg} damage (${dmgRes.formulaString}).`,
+          : `Attack roll ${pendingAttack.atkRoll.total} vs AC ${effectiveMonsterAc}${acReductionBreakdown}. Dealt ${dmg} damage (${dmgRes.formulaString}).`,
         {
           diceType: 'd20',
           rolls: pendingAttack.atkRoll.individualRolls,
           modifier: pendingAttack.atkRoll.modifier,
           total: pendingAttack.atkRoll.total,
-          targetValue: monster.armorClass,
+          targetValue: effectiveMonsterAc,
           isCrit: pendingAttack.isCrit,
         },
         dmg
@@ -709,12 +713,12 @@ export const CombatView: React.FC<CombatViewProps> = ({
     if (detail.isAutoHit) {
       skillRoll.isCrit = false;
       skillRoll.isFumble = false;
-      skillRoll.total = Math.max(skillRoll.total, monster.armorClass);
+      skillRoll.total = Math.max(skillRoll.total, effectiveMonsterAc);
     }
     setCurrentRoll(skillRoll);
 
     setTimeout(() => {
-      const isHit = detail.isAutoHit || skillRoll.isCrit || (!skillRoll.isFumble && skillRoll.total >= monster.armorClass);
+      const isHit = detail.isAutoHit || skillRoll.isCrit || (!skillRoll.isFumble && skillRoll.total >= effectiveMonsterAc);
       
       if (skillRoll.isFumble && !detail.isAutoHit) {
         combat.heroStumbled = true;
@@ -740,8 +744,8 @@ export const CombatView: React.FC<CombatViewProps> = ({
         setActionSummary({
           title: skillRoll.isFumble ? `${skill.name} Critical Fumble! (Natural 1)` : `${skill.name} Missed / Evaded`,
           details: skillRoll.isFumble
-            ? `Attack Roll: [1] (Natural 1 Fumble!) ${skillRoll.modifier >= 0 ? `+ ${skillRoll.modifier}` : skillRoll.modifier} (${statBreakdown}) = ${skillRoll.total} vs AC ${monster.armorClass}.\n\n💥 STUMBLED & VULNERABLE: The ability completely backfired! You lost your footing and FORFEIT your next combat turn while recovering balance!`
-            : `Attack Roll: [${skillRoll.individualRolls[0]}] ${skillRoll.modifier >= 0 ? `+ ${skillRoll.modifier}` : skillRoll.modifier} (${statBreakdown}) = ${skillRoll.total} vs AC ${monster.armorClass}. Deflected by monster defenses!`,
+            ? `Attack Roll: [1] (Natural 1 Fumble!) ${skillRoll.modifier >= 0 ? `+ ${skillRoll.modifier}` : skillRoll.modifier} (${statBreakdown}) = ${skillRoll.total} vs AC ${effectiveMonsterAc}${acReductionBreakdown}.\n\n💥 STUMBLED & VULNERABLE: The ability completely backfired! You lost your footing and FORFEIT your next combat turn while recovering balance!`
+            : `Attack Roll: [${skillRoll.individualRolls[0]}] ${skillRoll.modifier >= 0 ? `+ ${skillRoll.modifier}` : skillRoll.modifier} (${statBreakdown}) = ${skillRoll.total} vs AC ${effectiveMonsterAc}${acReductionBreakdown}. Deflected by monster defenses!`,
           isHit: false,
           isFumble: skillRoll.isFumble,
           type: 'hero',
@@ -751,7 +755,7 @@ export const CombatView: React.FC<CombatViewProps> = ({
           skillRoll.isFumble ? `${skill.name} (Fumble)` : `${skill.name} (Miss)`,
           skillRoll.isFumble
             ? `Rolled Natural 1 on ${skill.name}! Hero stumbled and forfeits next turn!`
-            : `Failed to penetrate AC ${monster.armorClass} (Rolled ${skillRoll.total}).`
+            : `Failed to penetrate AC ${effectiveMonsterAc}${acReductionBreakdown} (Rolled ${skillRoll.total}).`
         );
       } else {
         sounds.playFire();
@@ -760,8 +764,8 @@ export const CombatView: React.FC<CombatViewProps> = ({
           details: detail.isAutoHit
             ? `Unerring Arcane strike automatically hit monster for full effect! Proceed to roll damage.`
             : skillRoll.isCrit
-            ? `Attack Roll: [20] (Natural 20 Critical!) ${skillRoll.modifier >= 0 ? `+ ${skillRoll.modifier}` : skillRoll.modifier} (${statBreakdown}) = ${skillRoll.total} vs AC ${monster.armorClass}.\n\n⚔️ CRITICAL STRIKE: Devastating direct hit! Your upcoming damage roll will be DOUBLED (2x Damage Multiplier + 3 Brutal Strike Bonus)!`
-            : `Attack Roll: [${skillRoll.individualRolls[0]}] ${skillRoll.modifier >= 0 ? `+ ${skillRoll.modifier}` : skillRoll.modifier} (${statBreakdown}) = ${skillRoll.total} vs AC ${monster.armorClass}. Hit connected! Proceed to roll damage dice.`,
+            ? `Attack Roll: [20] (Natural 20 Critical!) ${skillRoll.modifier >= 0 ? `+ ${skillRoll.modifier}` : skillRoll.modifier} (${statBreakdown}) = ${skillRoll.total} vs AC ${effectiveMonsterAc}${acReductionBreakdown}.\n\n⚔️ CRITICAL STRIKE: Devastating direct hit! Your upcoming damage roll will be DOUBLED (2x Damage Multiplier + 3 Brutal Strike Bonus)!`
+            : `Attack Roll: [${skillRoll.individualRolls[0]}] ${skillRoll.modifier >= 0 ? `+ ${skillRoll.modifier}` : skillRoll.modifier} (${statBreakdown}) = ${skillRoll.total} vs AC ${effectiveMonsterAc}${acReductionBreakdown}. Hit connected! Proceed to roll damage dice.`,
           isHit: true,
           isCrit: skillRoll.isCrit,
           type: 'hero',
@@ -1315,13 +1319,13 @@ export const CombatView: React.FC<CombatViewProps> = ({
       if (detail.isAutoHit) {
         spellRoll.isCrit = false;
         spellRoll.isFumble = false;
-        spellRoll.total = Math.max(spellRoll.total, monster.armorClass);
+        spellRoll.total = Math.max(spellRoll.total, effectiveMonsterAc);
       }
       setCurrentRoll(spellRoll);
       const statBreakdown = `${detail.statMod >= 0 ? `+${detail.statMod}` : detail.statMod} ${detail.statKey}${detail.extraAccuracyLabel ? ` ${detail.extraAccuracyLabel}` : ''}`;
 
       setTimeout(() => {
-        const isHit = detail.isAutoHit || spellRoll.isCrit || (!spellRoll.isFumble && spellRoll.total >= monster.armorClass);
+        const isHit = detail.isAutoHit || spellRoll.isCrit || (!spellRoll.isFumble && spellRoll.total >= effectiveMonsterAc);
         if (spellRoll.isFumble && !detail.isAutoHit) {
           combat.heroStumbled = true;
           onUpdateCombat({ ...combat });
@@ -1340,20 +1344,20 @@ export const CombatView: React.FC<CombatViewProps> = ({
           setActionSummary({
             title: spellRoll.isFumble ? `${pendingAttack.name} Critical Fumble (Fate Reroll)!` : `${pendingAttack.name} Missed (Fate Reroll)`,
             details: spellRoll.isFumble
-              ? `Fate Reroll: [1] (Natural 1 Fumble!) ${spellRoll.modifier >= 0 ? `+ ${spellRoll.modifier}` : spellRoll.modifier} (${statBreakdown}) = ${spellRoll.total} vs AC ${monster.armorClass}.\n\n💥 STUMBLED & VULNERABLE: Botched the spell on reroll and lost balance! You FORFEIT your next combat turn!`
-              : `Fate Reroll: [${spellRoll.individualRolls[0]}] ${spellRoll.modifier >= 0 ? `+ ${spellRoll.modifier}` : spellRoll.modifier} (${statBreakdown}) = ${spellRoll.total} vs AC ${monster.armorClass}. Deflected by monster defenses!`,
+              ? `Fate Reroll: [1] (Natural 1 Fumble!) ${spellRoll.modifier >= 0 ? `+ ${spellRoll.modifier}` : spellRoll.modifier} (${statBreakdown}) = ${spellRoll.total} vs AC ${effectiveMonsterAc}${acReductionBreakdown}.\n\n💥 STUMBLED & VULNERABLE: Botched the spell on reroll and lost balance! You FORFEIT your next combat turn!`
+              : `Fate Reroll: [${spellRoll.individualRolls[0]}] ${spellRoll.modifier >= 0 ? `+ ${spellRoll.modifier}` : spellRoll.modifier} (${statBreakdown}) = ${spellRoll.total} vs AC ${effectiveMonsterAc}${acReductionBreakdown}. Deflected by monster defenses!`,
             isHit: false,
             isFumble: spellRoll.isFumble,
             type: 'hero',
           });
-          addLog('hero', `${pendingAttack.name} (Fate Reroll Miss)`, `Spell failed to penetrate AC ${monster.armorClass}.`);
+          addLog('hero', `${pendingAttack.name} (Fate Reroll Miss)`, `Spell failed to penetrate AC ${effectiveMonsterAc}${acReductionBreakdown}.`);
         } else {
           sounds.playFire();
           setActionSummary({
             title: spellRoll.isCrit ? `CRITICAL ${pendingAttack.name.toUpperCase()} (FATE REROLL)!` : `${pendingAttack.name} Connected (Fate Reroll)!`,
             details: spellRoll.isCrit
-              ? `Fate Reroll: [20] (Natural 20 Critical!) ${spellRoll.modifier >= 0 ? `+ ${spellRoll.modifier}` : spellRoll.modifier} (${statBreakdown}) = ${spellRoll.total} vs AC ${monster.armorClass}.\n\n⚔️ CRITICAL STRIKE: Upcoming damage roll will be DOUBLED (2x Damage Multiplier + 3 Brutal Strike Bonus)!`
-              : `Fate Reroll: [${spellRoll.individualRolls[0]}] ${spellRoll.modifier >= 0 ? `+ ${spellRoll.modifier}` : spellRoll.modifier} (${statBreakdown}) = ${spellRoll.total} vs AC ${monster.armorClass}. Strike connected! Proceed to roll damage dice.`,
+              ? `Fate Reroll: [20] (Natural 20 Critical!) ${spellRoll.modifier >= 0 ? `+ ${spellRoll.modifier}` : spellRoll.modifier} (${statBreakdown}) = ${spellRoll.total} vs AC ${effectiveMonsterAc}${acReductionBreakdown}.\n\n⚔️ CRITICAL STRIKE: Upcoming damage roll will be DOUBLED (2x Damage Multiplier + 3 Brutal Strike Bonus)!`
+              : `Fate Reroll: [${spellRoll.individualRolls[0]}] ${spellRoll.modifier >= 0 ? `+ ${spellRoll.modifier}` : spellRoll.modifier} (${statBreakdown}) = ${spellRoll.total} vs AC ${effectiveMonsterAc}${acReductionBreakdown}. Strike connected! Proceed to roll damage dice.`,
             isHit: true,
             isCrit: spellRoll.isCrit,
             type: 'hero',
@@ -1366,7 +1370,7 @@ export const CombatView: React.FC<CombatViewProps> = ({
       setCurrentRoll(atkRoll);
 
       setTimeout(() => {
-        const isHit = atkRoll.isCrit || (!atkRoll.isFumble && atkRoll.total >= monster.armorClass);
+        const isHit = atkRoll.isCrit || (!atkRoll.isFumble && atkRoll.total >= effectiveMonsterAc);
         if (atkRoll.isFumble) {
           combat.heroStumbled = true;
           onUpdateCombat({ ...combat });
@@ -1385,8 +1389,8 @@ export const CombatView: React.FC<CombatViewProps> = ({
           setActionSummary({
             title: atkRoll.isFumble ? 'CRITICAL FUMBLE (FATE REROLL)!' : 'ATTACK MISSED (FATE REROLL)',
             details: atkRoll.isFumble
-              ? `Fate Reroll: [1] (Natural 1 Fumble!) ${atkRoll.modifier >= 0 ? `+ ${atkRoll.modifier}` : atkRoll.modifier} (${weaponStatBreakdown}) = ${atkRoll.total} vs Enemy AC ${monster.armorClass}.\n\n💥 STUMBLED & VULNERABLE: Overextended on reroll! You FORFEIT your next combat turn!`
-              : `Fate Reroll: [${atkRoll.individualRolls[0]}] ${atkRoll.modifier >= 0 ? `+ ${atkRoll.modifier}` : atkRoll.modifier} (${weaponStatBreakdown}) = ${atkRoll.total} vs Enemy AC ${monster.armorClass}. The blow failed to penetrate!`,
+              ? `Fate Reroll: [1] (Natural 1 Fumble!) ${atkRoll.modifier >= 0 ? `+ ${atkRoll.modifier}` : atkRoll.modifier} (${weaponStatBreakdown}) = ${atkRoll.total} vs Enemy AC ${effectiveMonsterAc}${acReductionBreakdown}.\n\n💥 STUMBLED & VULNERABLE: Overextended on reroll! You FORFEIT your next combat turn!`
+              : `Fate Reroll: [${atkRoll.individualRolls[0]}] ${atkRoll.modifier >= 0 ? `+ ${atkRoll.modifier}` : atkRoll.modifier} (${weaponStatBreakdown}) = ${atkRoll.total} vs Enemy AC ${effectiveMonsterAc}${acReductionBreakdown}. The blow failed to penetrate!`,
             isHit: false,
             isFumble: atkRoll.isFumble,
             type: 'hero',
@@ -1394,13 +1398,13 @@ export const CombatView: React.FC<CombatViewProps> = ({
           addLog(
             'hero',
             `Fate Reroll Attack (Miss)`,
-            `Rolled [${atkRoll.individualRolls[0]}]+${atkRoll.modifier}=${atkRoll.total} vs AC ${monster.armorClass}. Missed!`,
+            `Rolled [${atkRoll.individualRolls[0]}]+${atkRoll.modifier}=${atkRoll.total} vs AC ${effectiveMonsterAc}${acReductionBreakdown}. Missed!`,
             {
               diceType: 'd20',
               rolls: atkRoll.individualRolls,
               modifier: atkRoll.modifier,
               total: atkRoll.total,
-              targetValue: monster.armorClass,
+              targetValue: effectiveMonsterAc,
               isFumble: atkRoll.isFumble,
             }
           );
@@ -1409,8 +1413,8 @@ export const CombatView: React.FC<CombatViewProps> = ({
           setActionSummary({
             title: atkRoll.isCrit ? 'CRITICAL HIT (FATE REROLL)!' : 'ATTACK HIT (FATE REROLL)!',
             details: atkRoll.isCrit
-              ? `Fate Reroll: [20] (Natural 20 Critical!) ${atkRoll.modifier >= 0 ? `+ ${atkRoll.modifier}` : atkRoll.modifier} (${weaponStatBreakdown}) = ${atkRoll.total} vs Enemy AC ${monster.armorClass}.\n\n⚔️ CRITICAL STRIKE: Upcoming damage roll will be DOUBLED (2x Damage Multiplier + 3 Brutal Strike Bonus)!`
-              : `Fate Reroll: [${atkRoll.individualRolls[0]}] ${atkRoll.modifier >= 0 ? `+ ${atkRoll.modifier}` : atkRoll.modifier} (${weaponStatBreakdown}) = ${atkRoll.total} vs Enemy AC ${monster.armorClass}. Strike connected! Proceed to roll damage dice.`,
+              ? `Fate Reroll: [20] (Natural 20 Critical!) ${atkRoll.modifier >= 0 ? `+ ${atkRoll.modifier}` : atkRoll.modifier} (${weaponStatBreakdown}) = ${atkRoll.total} vs Enemy AC ${effectiveMonsterAc}${acReductionBreakdown}.\n\n⚔️ CRITICAL STRIKE: Upcoming damage roll will be DOUBLED (2x Damage Multiplier + 3 Brutal Strike Bonus)!`
+              : `Fate Reroll: [${atkRoll.individualRolls[0]}] ${atkRoll.modifier >= 0 ? `+ ${atkRoll.modifier}` : atkRoll.modifier} (${weaponStatBreakdown}) = ${atkRoll.total} vs Enemy AC ${effectiveMonsterAc}${acReductionBreakdown}. Strike connected! Proceed to roll damage dice.`,
             isHit: true,
             isCrit: atkRoll.isCrit,
             type: 'hero',
@@ -1751,7 +1755,8 @@ export const CombatView: React.FC<CombatViewProps> = ({
                         </span>
                       </div>
                       <div className="text-[10px] font-mono text-amber-400/90 leading-tight">
-                        Roll: 1d20{totalWeaponAtkMod >= 0 ? `+${totalWeaponAtkMod}` : totalWeaponAtkMod} vs AC {monster.armorClass}
+                        Roll: 1d20{totalWeaponAtkMod >= 0 ? `+${totalWeaponAtkMod}` : totalWeaponAtkMod} vs AC {effectiveMonsterAc}
+                        {weaponAcReduction > 0 ? ` (-${weaponAcReduction} Sunder)` : ''}
                       </div>
                       <div className="text-[9px] font-mono text-stone-400 truncate mt-0.5">
                         Dmg: {weaponFormula}{weaponBonus >= 0 ? `+${weaponBonus}` : weaponBonus} • Crit: Nat 20
@@ -1943,7 +1948,7 @@ export const CombatView: React.FC<CombatViewProps> = ({
                   isRolling={false}
                   allowCustomDice={false}
                   showFormulaBadge={false}
-                  label={`Attack Roll (1d20 + ${pendingAttack.atkRoll.modifier}) vs AC ${monster.armorClass}`}
+                  label={`Attack Roll (1d20 + ${pendingAttack.atkRoll.modifier}) vs AC ${effectiveMonsterAc}${acReductionBreakdown}`}
                 />
               </div>
 

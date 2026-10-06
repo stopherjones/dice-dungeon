@@ -26,7 +26,7 @@ export const HERO_CLASSES: ClassDefinition[] = [
     startingGold: 15,
     startingEquipment: ['steel_broadsword', 'iron_kite_shield', 'chainmail_hauberk', 'dungeon_ration', 'dungeon_torch', 'minor_healing_potion'],
     gearHighlights: [
-      { name: 'Steel Broadsword', type: 'Martial Blade', bonus: '1d8+2 Dmg (+2 STR)', icon: 'Sword' },
+      { name: 'Steel Broadsword', type: 'Martial Blade', bonus: '1d8+2 Dmg (-1x Lv Enemy AC)', icon: 'Sword' },
       { name: 'Iron Kite Shield', type: 'Heavy Shield', bonus: '+2 Armor (+1 CON)', icon: 'Shield' },
       { name: 'Chainmail Hauberk', type: 'Armor', bonus: '+3 Armor (+1 CON)', icon: 'ShieldCheck' },
     ],
@@ -86,7 +86,7 @@ export const HERO_CLASSES: ClassDefinition[] = [
     startingGold: 25,
     startingEquipment: ['shadow_stiletto', 'leather_tunic', 'brass_spyglass', 'iron_lockpick', 'minor_healing_potion'],
     gearHighlights: [
-      { name: 'Shadowfang Stiletto', type: 'Finesse Dagger', bonus: '1d6+3 Dmg (+3 DEX, +1 LCK)', icon: 'Zap' },
+      { name: 'Shadowfang Stiletto', type: 'Finesse Dagger', bonus: '1d6+3 Dmg (-2 Enemy AC)', icon: 'Zap' },
       { name: "Burglar's Spyglass", type: 'Reusable Tool', bonus: 'Scouts adjacent rooms without torches', icon: 'Compass' },
       { name: "Thieves' Lockpick Kit", type: 'Reusable Tool', bonus: '1x Reusable Kit (+3 Lockpicking)', icon: 'Key' },
     ],
@@ -145,7 +145,7 @@ export const HERO_CLASSES: ClassDefinition[] = [
     startingGold: 20,
     startingEquipment: ['runic_spellstaff', 'spellbook_offhand', 'leather_tunic', 'scroll_of_fireball', 'mana_draught', 'dungeon_torch'],
     gearHighlights: [
-      { name: 'Runic Spellstaff', type: 'Arcane Staff', bonus: '1d6+2 Dmg (+3 INT Spell Power)', icon: 'Wand' },
+      { name: 'Runic Spellstaff', type: 'Arcane Staff', bonus: '1d6+2 Dmg (-1x Lv Enemy AC)', icon: 'Wand' },
       { name: 'Tome of Minor Wards', type: 'Grimoire', bonus: '+1 Armor (+2 INT Focus)', icon: 'BookOpen' },
       { name: 'Scroll of Fireball', type: 'Spell Scroll', bonus: '3d8 Fire Blast AoE Damage', icon: 'Sparkles' },
     ],
@@ -205,7 +205,7 @@ export const HERO_CLASSES: ClassDefinition[] = [
     startingGold: 18,
     startingEquipment: ['blessed_warhammer', 'iron_kite_shield', 'chainmail_hauberk', 'minor_healing_potion', 'mana_draught', 'dungeon_ration'],
     gearHighlights: [
-      { name: 'Blessed Sunhammer', type: 'Holy Weapon', bonus: '1d8+2 Dmg (+2 CON, +1 STR)', icon: 'Hammer' },
+      { name: 'Blessed Sunhammer', type: 'Holy Weapon', bonus: '1d8+2 Dmg (-3 Enemy AC)', icon: 'Hammer' },
       { name: 'Iron Kite Shield', type: 'Shield', bonus: '+2 Armor (+1 CON)', icon: 'ShieldAlert' },
       { name: 'Chainmail Hauberk', type: 'Armor', bonus: '+3 Armor (+1 CON)', icon: 'Shield' },
     ],
@@ -265,7 +265,7 @@ export const HERO_CLASSES: ClassDefinition[] = [
     startingGold: 15,
     startingEquipment: ['wall_axe', 'iron_kite_shield', 'iron_helm', 'chainmail_hauberk', 'minor_healing_potion', 'dungeon_torch'],
     gearHighlights: [
-      { name: 'Crusader Wall Axe', type: 'Consecrated Battleaxe', bonus: '1d8+2 Dmg & Smashes interior walls', icon: 'Hammer' },
+      { name: 'Crusader Wall Axe', type: 'Consecrated Battleaxe', bonus: '1d8+2 Dmg (-2 Enemy AC & Smashes walls)', icon: 'Hammer' },
       { name: 'Iron Kite Shield', type: 'Shield', bonus: '+2 Armor (+1 CON)', icon: 'ShieldAlert' },
       { name: 'Iron Bascinet & Mail', type: 'Heavy Armor', bonus: '+4 Armor (+2 CON)', icon: 'Crown' },
     ],
@@ -325,7 +325,7 @@ export const HERO_CLASSES: ClassDefinition[] = [
     startingGold: 22,
     startingEquipment: ['hunting_bow', 'leather_tunic', 'adventurers_boots', 'minor_healing_potion', 'iron_lockpick', 'dungeon_torch'],
     gearHighlights: [
-      { name: 'Recurve Yew Bow', type: 'Masterwork Bow', bonus: '1d8+2 Dmg (+3 DEX, +1 LCK)', icon: 'Target' },
+      { name: 'Recurve Yew Bow', type: 'Masterwork Bow', bonus: '1d8+2 Dmg (-1 Enemy AC)', icon: 'Target' },
       { name: 'Sturdy Tracker Boots', type: 'Boots', bonus: '+1 Armor (+1 DEX, Trap Evasion)', icon: 'Footprints' },
       { name: 'Padded Scout Tunic', type: 'Armor', bonus: '+1 Armor (+1 DEX)', icon: 'Shirt' },
     ],
@@ -385,7 +385,7 @@ export const HERO_CLASSES: ClassDefinition[] = [
     startingGold: 25,
     startingEquipment: ['gilded_longsword', 'heros_crest_shield', 'champions_breastplate', 'minor_healing_potion', 'dungeon_ration', 'dungeon_torch'],
     gearHighlights: [
-      { name: "Champion's Gilded Longsword", type: 'Martial Blade', bonus: '1d8+2 Dmg (+1 STR, +1 DEX)', icon: 'Sword' },
+      { name: "Champion's Gilded Longsword", type: 'Martial Blade', bonus: '1d8+2 Dmg (-2 Enemy AC)', icon: 'Sword' },
       { name: "Hero's Crest Shield", type: 'Heater Shield', bonus: '+2 Armor (+1 CON)', icon: 'Shield' },
       { name: "Champion's Gilded Cuirass", type: 'Heavy Plate', bonus: '+4 Armor (+1 STR, +1 CON)', icon: 'ShieldCheck' },
     ],
@@ -445,7 +445,7 @@ export const HERO_CLASSES: ClassDefinition[] = [
     startingGold: 30,
     startingEquipment: ['jesters_scepter', 'motley_tunic', 'trick_dice', 'minor_healing_potion', 'dungeon_ration'],
     gearHighlights: [
-      { name: "Jester's Marotte & Bells", type: 'Trick Wand', bonus: '1d6+1 Dmg (+3 LCK, Dazing Bells)', icon: 'Sparkles' },
+      { name: "Jester's Marotte & Bells", type: 'Trick Wand', bonus: '1d6+1 Dmg (-1 Enemy AC)', icon: 'Sparkles' },
       { name: "Jester's Motley Tunic", type: 'Agile Suit', bonus: '+1 Armor (+2 DEX, +2 LCK)', icon: 'Shirt' },
       { name: 'Loaded Trick Die', type: 'Lucky Trinket', bonus: '+2 LCK & 4x Starting Fate Tokens', icon: 'Dices' },
     ],

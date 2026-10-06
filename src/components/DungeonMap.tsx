@@ -986,20 +986,22 @@ export const DungeonMap: React.FC<DungeonMapProps> = ({
                 <p className="text-[10px] text-stone-400">Stat Blessings & Boons</p>
               </div>
 
-              <div className="bg-[#24170e] p-2 rounded border border-[#442b1a]">
-                <div className="flex items-center gap-1.5 text-amber-300 font-bold mb-1">
-                  <Tent className="w-3.5 h-3.5 text-amber-500" />
-                  <span>Hearth ({campfires.length})</span>
+              {campfires.length > 0 && (
+                <div className="bg-[#24170e] p-2 rounded border border-[#442b1a]">
+                  <div className="flex items-center gap-1.5 text-amber-300 font-bold mb-1">
+                    <Tent className="w-3.5 h-3.5 text-amber-500" />
+                    <span>Hearth ({campfires.length})</span>
+                  </div>
+                  <p className="text-[10px] text-stone-400">Floor Sanctuary</p>
                 </div>
-                <p className="text-[10px] text-stone-400">Floor Sanctuary [1,1]</p>
-              </div>
+              )}
 
               <div className="bg-[#24170e] p-2 rounded border border-[#442b1a]">
                 <div className="flex items-center gap-1.5 text-emerald-300 font-bold mb-1">
                   <Store className="w-3.5 h-3.5 text-emerald-400" />
                   <span>Shop ({merchants.length})</span>
                 </div>
-                <p className="text-[10px] text-stone-400">Merchant Goods</p>
+                <p className="text-[10px] text-stone-400">Merchant Goods [1,1]</p>
               </div>
 
               <div className="bg-[#24170e] p-2 rounded border border-[#442b1a]">

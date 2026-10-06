@@ -9,7 +9,7 @@ import { GameItem, HeroCharacter } from '../types/game';
 import { generateMerchantStock } from '../utils/generator';
 import { MERCHANT_QUOTES } from '../data/events';
 import { sounds } from '../utils/audio';
-import { addItemToHero, syncHeroSupplies } from '../utils/inventory';
+import { addItemToHero, canHeroEquipItem, getWeaponAcReduction, syncHeroSupplies } from '../utils/inventory';
 
 interface MerchantModalProps {
   hero: HeroCharacter;
@@ -298,13 +298,44 @@ export const MerchantModal: React.FC<MerchantModalProps> = ({
                           <span className="text-xs font-mono font-bold text-yellow-400">{item.value} G</span>
                         </div>
 
-                        <div className="mb-1.5">
+                        <div className="flex flex-wrap items-center gap-1 mb-1.5">
                           <span
                             className={`text-[9px] font-mono font-bold px-1.5 py-0.2 rounded border ${badge.bg}`}
                           >
                             {badge.label}
                           </span>
+                          {item.type === 'weapon' && getWeaponAcReduction(item, hero.level) > 0 && (
+                            <span
+                              className="text-[9px] font-mono font-bold px-1.5 py-0.2 rounded bg-amber-950 border border-amber-600 text-amber-200"
+                              title="Reduces monster Armor Class on attack rolls"
+                            >
+                              -{getWeaponAcReduction(item, hero.level)} Enemy AC
+                            </span>
+                          )}
                         </div>
+
+                        {/* Requirements preview if equipment */}
+                        {['weapon', 'shield', 'armor', 'helmet', 'boots', 'ring', 'amulet'].includes(item.type) &&
+                          item.requirements &&
+                          Object.keys(item.requirements).length > 0 && (() => {
+                            const check = canHeroEquipItem(hero, item);
+                            return (
+                              <div className="mb-1.5 flex flex-wrap gap-1">
+                                {check.requirementBadges.map((rb, i) => (
+                                  <span
+                                    key={i}
+                                    className={`text-[8px] font-mono px-1 py-0.2 rounded border ${
+                                      rb.met
+                                        ? 'bg-emerald-950/70 border-emerald-700 text-emerald-300'
+                                        : 'bg-red-950/70 border-red-800 text-red-300'
+                                    }`}
+                                  >
+                                    {rb.label} {rb.met ? '✓' : '✗'}
+                                  </span>
+                                ))}
+                              </div>
+                            );
+                          })()}
 
                         <p className="text-[11px] text-stone-300 font-serif leading-tight mb-2">
                           {item.description}

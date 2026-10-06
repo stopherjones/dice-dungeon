@@ -24,10 +24,16 @@ import {
   Eye,
   Check,
   ChevronRight,
+  AlertCircle,
 } from 'lucide-react';
 import { GameItem, HeroCharacter, StatType } from '../types/game';
 import { sounds } from '../utils/audio';
-import { dropItemFromHero, syncHeroSupplies } from '../utils/inventory';
+import {
+  canHeroEquipItem,
+  dropItemFromHero,
+  getWeaponAcReduction,
+  syncHeroSupplies,
+} from '../utils/inventory';
 import { getStatModifier } from '../utils/dice';
 
 interface BackpackPanelProps {
@@ -74,6 +80,12 @@ export const BackpackPanel: React.FC<BackpackPanelProps> = ({
     else if (item.type === 'amulet') slotKey = 'amulet';
 
     if (!slotKey) return;
+
+    const check = canHeroEquipItem(hero, item, slotKey);
+    if (!check.canEquip) {
+      sounds.playTrap();
+      return;
+    }
 
     // Swap old item into inventory
     const oldItem = hero.equipment[slotKey];
@@ -404,6 +416,14 @@ export const BackpackPanel: React.FC<BackpackPanelProps> = ({
                           {item.damageDice}
                         </span>
                       )}
+                      {item.type === 'weapon' && getWeaponAcReduction(item, hero.level) > 0 && (
+                        <span
+                          className="text-[9px] font-mono text-amber-300 bg-amber-950/80 px-1.5 py-0.5 rounded border border-amber-800"
+                          title="Reduces monster Armor Class on attack rolls"
+                        >
+                          -{getWeaponAcReduction(item, hero.level)} Enemy AC
+                        </span>
+                      )}
                       {item.armorBonus && (
                         <span className="text-[9px] font-mono text-blue-300 bg-blue-950/80 px-1.5 py-0.5 rounded border border-blue-800">
                           +{item.armorBonus} AC
@@ -493,9 +513,17 @@ export const BackpackPanel: React.FC<BackpackPanelProps> = ({
                   </div>
 
                   <div className="flex items-center justify-between text-[10px] text-stone-400 font-mono pt-1 border-t border-[#362315]/60 mt-1">
-                    <span className={`text-[8px] font-mono font-bold px-1 py-0.2 rounded border ${badge.bg}`}>
-                      {badge.label}
-                    </span>
+                    <div className="flex items-center gap-1">
+                      <span className={`text-[8px] font-mono font-bold px-1 py-0.2 rounded border ${badge.bg}`}>
+                        {badge.label}
+                      </span>
+                      {['weapon', 'shield', 'armor', 'helmet', 'boots', 'ring', 'amulet'].includes(inv.item.type) &&
+                        !canHeroEquipItem(hero, inv.item).canEquip && (
+                          <span className="text-[8px] font-mono font-bold px-1 py-0.2 rounded bg-red-950/90 text-red-300 border border-red-800">
+                            Reqs Unmet
+                          </span>
+                        )}
+                    </div>
                     <span className="text-[9px] text-yellow-400/90 font-mono">{inv.item.value}g</span>
                   </div>
                 </button>
@@ -550,29 +578,92 @@ export const BackpackPanel: React.FC<BackpackPanelProps> = ({
               </div>
 
               {/* Stats badges */}
-              <div className="flex flex-wrap gap-1.5 text-[10px] font-mono">
-                {inspectTarget.item.damageDice && (
-                  <span className="bg-[#2a170e] px-2 py-0.5 rounded border border-[#522d1b] text-red-300 font-bold">
-                    ⚔ Damage: {inspectTarget.item.damageDice}
-                    {inspectTarget.item.bonusDamage ? `+${inspectTarget.item.bonusDamage}` : ''}
-                  </span>
-                )}
-                {inspectTarget.item.armorBonus && (
-                  <span className="bg-[#121c2b] px-2 py-0.5 rounded border border-[#233b5c] text-blue-300 font-bold">
-                    🛡 Armor: +{inspectTarget.item.armorBonus} AC
-                  </span>
-                )}
-                {inspectTarget.item.healHp && (
-                  <span className="bg-[#122b17] px-2 py-0.5 rounded border border-[#235c2e] text-emerald-300 font-bold">
-                    ❤ Heals: +{inspectTarget.item.healHp} HP
-                  </span>
-                )}
-                {inspectTarget.item.healMana && (
-                  <span className="bg-[#1b142e] px-2 py-0.5 rounded border border-[#3b2a63] text-purple-300 font-bold">
-                    ⚡ Restores: +{inspectTarget.item.healMana} EP
-                  </span>
-                )}
-              </div>
+              {(() => {
+                const itemWeaponSunder =
+                  inspectTarget.item.type === 'weapon'
+                    ? getWeaponAcReduction(inspectTarget.item, hero.level)
+                    : 0;
+
+                let targetSlotKey: keyof HeroCharacter['equipment'] | undefined = undefined;
+                if (inspectTarget.item.type === 'weapon') targetSlotKey = 'weapon';
+                else if (inspectTarget.item.type === 'shield') targetSlotKey = 'offhand';
+                else if (inspectTarget.item.type === 'armor') targetSlotKey = 'armor';
+                else if (inspectTarget.item.type === 'helmet') targetSlotKey = 'helmet';
+                else if (inspectTarget.item.type === 'boots') targetSlotKey = 'boots';
+                else if (inspectTarget.item.type === 'ring') targetSlotKey = 'ring';
+                else if (inspectTarget.item.type === 'amulet') targetSlotKey = 'amulet';
+
+                const targetEquipCheck = targetSlotKey
+                  ? canHeroEquipItem(hero, inspectTarget.item, targetSlotKey)
+                  : null;
+
+                return (
+                  <>
+                    <div className="flex flex-wrap gap-1.5 text-[10px] font-mono">
+                      {inspectTarget.item.damageDice && (
+                        <span className="bg-[#2a170e] px-2 py-0.5 rounded border border-[#522d1b] text-red-300 font-bold">
+                          ⚔ Damage: {inspectTarget.item.damageDice}
+                          {inspectTarget.item.bonusDamage ? `+${inspectTarget.item.bonusDamage}` : ''}
+                        </span>
+                      )}
+                      {itemWeaponSunder > 0 && (
+                        <span
+                          className="bg-[#331515] px-2 py-0.5 rounded border border-[#692929] text-amber-200 font-bold"
+                          title="Reduces monster Armor Class on attack rolls"
+                        >
+                          ⚔ Sunder: -{itemWeaponSunder} Enemy AC
+                          {inspectTarget.item.enemyAcReductionPerLevel
+                            ? ` (-${inspectTarget.item.enemyAcReductionPerLevel}x Lv)`
+                            : ''}
+                        </span>
+                      )}
+                      {inspectTarget.item.armorBonus && (
+                        <span className="bg-[#121c2b] px-2 py-0.5 rounded border border-[#233b5c] text-blue-300 font-bold">
+                          🛡 Armor: +{inspectTarget.item.armorBonus} AC
+                        </span>
+                      )}
+                      {inspectTarget.item.healHp && (
+                        <span className="bg-[#122b17] px-2 py-0.5 rounded border border-[#235c2e] text-emerald-300 font-bold">
+                          ❤ Heals: +{inspectTarget.item.healHp} HP
+                        </span>
+                      )}
+                      {inspectTarget.item.healMana && (
+                        <span className="bg-[#1b142e] px-2 py-0.5 rounded border border-[#3b2a63] text-purple-300 font-bold">
+                          ⚡ Restores: +{inspectTarget.item.healMana} EP
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Requirements badges */}
+                    {targetEquipCheck && targetEquipCheck.requirementBadges.length > 0 && (
+                      <div className="p-2 bg-[#120a06] rounded border border-[#442c19] space-y-1">
+                        <div className="text-[10px] font-mono text-stone-400 uppercase">
+                          Item Requirements:
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {targetEquipCheck.requirementBadges.map((badge, idx) => (
+                            <span
+                              key={idx}
+                              className={`px-2 py-0.5 rounded border text-[10px] font-mono font-bold flex items-center gap-1 ${
+                                badge.met
+                                  ? 'bg-emerald-950/80 border-emerald-700 text-emerald-300'
+                                  : 'bg-red-950/80 border-red-700 text-red-300'
+                              }`}
+                            >
+                              {badge.met ? (
+                                <Check className="w-3 h-3 text-emerald-400" />
+                              ) : (
+                                <X className="w-3 h-3 text-red-400" />
+                              )}
+                              <span>{badge.label}</span>
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
 
               {/* Description */}
               <p className="text-xs text-stone-300 font-serif leading-relaxed">
@@ -586,15 +677,47 @@ export const BackpackPanel: React.FC<BackpackPanelProps> = ({
                     {/* Equip button */}
                     {['weapon', 'shield', 'armor', 'helmet', 'boots', 'ring', 'amulet'].includes(
                       inspectTarget.item.type
-                    ) && (
-                      <button
-                        onClick={() => handleEquipItem(inspectTarget.index)}
-                        className="px-3 py-1.5 bg-gradient-to-r from-amber-700 to-amber-800 hover:from-amber-600 hover:to-amber-700 text-amber-100 font-serif font-bold text-xs rounded border border-amber-500/70 shadow flex items-center gap-1.5 cursor-pointer"
-                      >
-                        <Shield className="w-3.5 h-3.5" />
-                        <span>Equip Gear</span>
-                      </button>
-                    )}
+                    ) && (() => {
+                      let targetSlotKey: keyof HeroCharacter['equipment'] | undefined = undefined;
+                      if (inspectTarget.item.type === 'weapon') targetSlotKey = 'weapon';
+                      else if (inspectTarget.item.type === 'shield') targetSlotKey = 'offhand';
+                      else if (inspectTarget.item.type === 'armor') targetSlotKey = 'armor';
+                      else if (inspectTarget.item.type === 'helmet') targetSlotKey = 'helmet';
+                      else if (inspectTarget.item.type === 'boots') targetSlotKey = 'boots';
+                      else if (inspectTarget.item.type === 'ring') targetSlotKey = 'ring';
+                      else if (inspectTarget.item.type === 'amulet') targetSlotKey = 'amulet';
+
+                      const check = targetSlotKey
+                        ? canHeroEquipItem(hero, inspectTarget.item, targetSlotKey)
+                        : { canEquip: true, reasons: [] };
+
+                      if (check.canEquip) {
+                        return (
+                          <button
+                            onClick={() => handleEquipItem(inspectTarget.index)}
+                            className="px-3 py-1.5 bg-gradient-to-r from-amber-700 to-amber-800 hover:from-amber-600 hover:to-amber-700 text-amber-100 font-serif font-bold text-xs rounded border border-amber-500/70 shadow flex items-center gap-1.5 cursor-pointer"
+                          >
+                            <Shield className="w-3.5 h-3.5" />
+                            <span>Equip Gear</span>
+                          </button>
+                        );
+                      }
+
+                      return (
+                        <div className="flex flex-col gap-1">
+                          <button
+                            disabled
+                            className="px-3 py-1.5 bg-stone-900 border border-red-800 text-red-300 font-serif font-bold text-xs rounded opacity-75 cursor-not-allowed flex items-center gap-1.5"
+                          >
+                            <AlertCircle className="w-3.5 h-3.5 text-red-400" />
+                            <span>Requirements Not Met</span>
+                          </button>
+                          <span className="text-[10px] font-serif text-amber-300/80 italic">
+                            Cannot be wielded. Keep in pack or sell to Olaf for {Math.max(1, Math.floor(inspectTarget.item.value * 0.6))} Gold.
+                          </span>
+                        </div>
+                      );
+                    })()}
 
                     {/* Consumable use button */}
                     {inspectTarget.item.usableOutOfCombat && (

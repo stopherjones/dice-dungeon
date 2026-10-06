@@ -3,7 +3,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { GameItem, HeroCharacter, InventoryItem } from '../types/game';
+import {
+  CharacterStats,
+  Equipment,
+  GameItem,
+  HeroCharacter,
+  InventoryItem,
+  StatType,
+} from '../types/game';
 
 /**
  * Ensures:
@@ -193,5 +200,138 @@ export function dropItemFromHero(hero: HeroCharacter, inventoryIdx: number): boo
   hero.inventory.splice(inventoryIdx, 1);
   syncHeroSupplies(hero);
   return true;
+}
+
+/**
+ * Calculates the hero's effective attributes taking into account equipped items (amulets, rings, armor, etc.)
+ * If excludeSlot is provided (e.g. 'weapon'), that slot is omitted so an item being evaluated doesn't count its own bonus.
+ */
+export function getHeroEffectiveStats(
+  hero: HeroCharacter,
+  excludeSlot?: keyof Equipment
+): CharacterStats {
+  const effective: CharacterStats = { ...hero.stats };
+  if (!hero.equipment) return effective;
+
+  (Object.keys(hero.equipment) as (keyof Equipment)[]).forEach((slot) => {
+    if (slot === excludeSlot) return;
+    const item = hero.equipment[slot];
+    if (item && item.statBonuses) {
+      if (item.statBonuses.STR) effective.STR += item.statBonuses.STR;
+      if (item.statBonuses.DEX) effective.DEX += item.statBonuses.DEX;
+      if (item.statBonuses.CON) effective.CON += item.statBonuses.CON;
+      if (item.statBonuses.INT) effective.INT += item.statBonuses.INT;
+      if (item.statBonuses.LCK) effective.LCK += item.statBonuses.LCK;
+    }
+  });
+
+  return effective;
+}
+
+export interface EquipCheckResult {
+  canEquip: boolean;
+  reasons: string[];
+  requirementBadges: { label: string; met: boolean }[];
+}
+
+/**
+ * Checks if a hero can equip a specific item based on stat requirements, class, and race.
+ */
+export function canHeroEquipItem(
+  hero: HeroCharacter,
+  item: GameItem,
+  slotKey?: keyof Equipment
+): EquipCheckResult {
+  const req = item.requirements;
+  if (!req) {
+    return { canEquip: true, reasons: [], requirementBadges: [] };
+  }
+
+  const reasons: string[] = [];
+  const badges: { label: string; met: boolean }[] = [];
+
+  const effectiveStats = getHeroEffectiveStats(hero, slotKey);
+  const heroRace = hero.destinyProfile?.race || 'Human';
+  const heroClass = hero.classId;
+
+  // 1. Minimum stat requirements
+  if (req.minStats) {
+    (Object.entries(req.minStats) as [StatType, number][]).forEach(([stat, minVal]) => {
+      const currentVal = effectiveStats[stat] || 0;
+      const met = currentVal >= minVal;
+      badges.push({
+        label: `Requires ${stat} ${minVal}`,
+        met,
+      });
+      if (!met) {
+        reasons.push(`Requires ${stat} ${minVal} (Current: ${currentVal})`);
+      }
+    });
+  }
+
+  // 2. Allowed classes
+  if (req.allowedClasses && req.allowedClasses.length > 0) {
+    const met = req.allowedClasses.includes(heroClass);
+    const classNames = req.allowedClasses.map((c) => c.charAt(0).toUpperCase() + c.slice(1)).join(' / ');
+    badges.push({
+      label: `Class: ${classNames}`,
+      met,
+    });
+    if (!met) {
+      reasons.push(`Restricted to class: ${classNames}`);
+    }
+  }
+
+  // 3. Restricted classes
+  if (req.restrictedClasses && req.restrictedClasses.length > 0) {
+    const isRestricted = req.restrictedClasses.includes(heroClass);
+    if (isRestricted) {
+      badges.push({
+        label: `Cannot be used by ${heroClass}`,
+        met: false,
+      });
+      reasons.push(`Cannot be used by ${heroClass}`);
+    }
+  }
+
+  // 4. Allowed races
+  if (req.allowedRaces && req.allowedRaces.length > 0) {
+    const met = heroRace ? req.allowedRaces.includes(heroRace) : false;
+    const raceNames = req.allowedRaces.join(' / ');
+    badges.push({
+      label: `Race: ${raceNames}`,
+      met,
+    });
+    if (!met) {
+      reasons.push(`Requires race: ${raceNames}`);
+    }
+  }
+
+  // 5. Restricted races
+  if (req.restrictedRaces && req.restrictedRaces.length > 0) {
+    const isRestricted = heroRace ? req.restrictedRaces.includes(heroRace) : false;
+    if (isRestricted) {
+      const restrictedNames = req.restrictedRaces.join(', ');
+      badges.push({
+        label: `Cannot be wielded by ${restrictedNames}`,
+        met: false,
+      });
+      reasons.push(`Too heavy or unsuitable for ${heroRace}`);
+    }
+  }
+
+  return {
+    canEquip: reasons.length === 0,
+    reasons,
+    requirementBadges: badges,
+  };
+}
+
+/**
+ * Computes enemy AC reduction for a weapon, factoring in flat reduction and per-level scaling.
+ */
+export function getWeaponAcReduction(item?: GameItem, heroLevel = 1): number {
+  if (!item) return 0;
+  return (item.enemyAcReduction || 0) + (item.enemyAcReductionPerLevel || 0) * heroLevel;
 }
 

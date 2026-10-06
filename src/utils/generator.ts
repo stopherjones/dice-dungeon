@@ -150,10 +150,10 @@ export function generateLootForFloor(floorNumber: number, isMajorChest: boolean 
   const gold = floorNumber * 12 + rollDie(16) + (isMajorChest ? 35 : 0);
   const items: GameItem[] = [];
 
-  const commonPool = ['minor_healing_potion', 'dungeon_ration', 'dungeon_torch', 'iron_lockpick', 'mana_draught'];
-  const uncommonPool = ['greater_mana_draught', 'iron_shortsword', 'steel_broadsword', 'wall_axe', 'wooden_buckler', 'iron_kite_shield', 'leather_tunic', 'hunting_bow', 'scroll_of_fireball', 'scroll_of_teleport', 'potion_of_phasing', 'brass_spyglass'];
-  const rarePool = ['plate_armor_of_the_champion', 'crown_of_clarity', 'boots_of_haste', 'ring_of_vitality', 'ring_of_fortune', 'amulet_of_power', 'shadow_stiletto', 'gem_ruby', 'dice_of_fate', 'elixir_of_heroism', 'dwarven_sledgehammer'];
-  const epicPool = ['dragonslayer_greatsword', 'aegis_of_light', 'amulet_of_the_archon', 'gem_diamond', 'archmage_scepter', 'dragonscale_armor'];
+  const commonPool = ['minor_healing_potion', 'dungeon_ration', 'dungeon_torch', 'iron_lockpick', 'mana_draught', 'wooden_club', 'hunting_sling', 'rusty_dagger'];
+  const uncommonPool = ['greater_mana_draught', 'iron_shortsword', 'steel_broadsword', 'wall_axe', 'wooden_buckler', 'iron_kite_shield', 'leather_tunic', 'hunting_bow', 'scroll_of_fireball', 'scroll_of_teleport', 'potion_of_phasing', 'brass_spyglass', 'blessed_warhammer', 'crusader_longsword', 'flame_wand', 'apprentice_staff', 'jesters_scepter'];
+  const rarePool = ['plate_armor_of_the_champion', 'crown_of_clarity', 'boots_of_haste', 'ring_of_vitality', 'ring_of_fortune', 'amulet_of_power', 'shadow_stiletto', 'gem_ruby', 'dice_of_fate', 'elixir_of_heroism', 'dwarven_sledgehammer', 'dwarven_waraxe', 'elven_moonblade', 'halfling_kukri', 'orcs_meat_cleaver', 'gnomish_clockwork_pistol', 'tiefling_hellblade', 'runic_spellstaff', 'gilded_longsword', 'human_valiant_broadsword', 'composite_greatbow', 'assassin_twin_daggers', 'cleric_sun_flail'];
+  const epicPool = ['dragonslayer_greatsword', 'aegis_of_light', 'amulet_of_the_archon', 'gem_diamond', 'archmage_scepter', 'dragonscale_armor', 'dragonborn_poleaxe'];
 
   // Always drop 1 potion/supply (higher floors have chance of greater potions)
   let potId = commonPool[Math.floor(Math.random() * commonPool.length)];
@@ -200,11 +200,11 @@ export function generateMerchantStock(floorNumber: number): GameItem[] {
   ];
 
   if (floorNumber === 1) {
-    stockIds.push('iron_shortsword', 'iron_kite_shield', 'leather_tunic', 'brass_spyglass', 'scroll_of_fireball');
+    stockIds.push('wooden_club', 'hunting_sling', 'iron_shortsword', 'iron_kite_shield', 'leather_tunic', 'brass_spyglass', 'scroll_of_fireball');
   } else if (floorNumber === 2) {
-    stockIds.push('steel_broadsword', 'chainmail_hauberk', 'dwarven_sledgehammer', 'potion_of_phasing', 'ring_of_vitality', 'crown_of_clarity', 'scroll_of_teleport');
+    stockIds.push('steel_broadsword', 'crusader_longsword', 'flame_wand', 'shadow_stiletto', 'halfling_kukri', 'chainmail_hauberk', 'dwarven_sledgehammer', 'potion_of_phasing', 'ring_of_vitality', 'crown_of_clarity', 'scroll_of_teleport');
   } else {
-    stockIds.push('plate_armor_of_the_champion', 'amulet_of_power', 'dwarven_sledgehammer', 'potion_of_phasing', 'boots_of_haste', 'elixir_of_heroism');
+    stockIds.push('dwarven_waraxe', 'human_valiant_broadsword', 'composite_greatbow', 'cleric_sun_flail', 'plate_armor_of_the_champion', 'amulet_of_power', 'dwarven_sledgehammer', 'potion_of_phasing', 'boots_of_haste', 'elixir_of_heroism');
   }
 
   return stockIds.map((id) => ITEMS_DATABASE[id]).filter(Boolean);
@@ -273,6 +273,7 @@ export function isBossCandidatePosition(x: number, y: number): boolean {
 export function isRoomPassedThrough(room?: DungeonRoom | null): boolean {
   if (!room) return false;
   if (room.type === 'CAMPFIRE') return true;
+  if (room.type === 'MERCHANT') return true;
   if (room.isCleared) return true;
   if (room.type === 'MONSTER' || room.type === 'BOSS_ROOM') {
     return !room.monster || room.monster.hp <= 0;
@@ -311,6 +312,15 @@ export function getRoomDisplayInfo(room: DungeonRoom): {
       title: room.title || 'Dungeon Hearth',
       description: 'The warm embers crackle peacefully. A safe haven to rest, bandage wounds, and eat rations.',
       statusBadge: 'Safe Haven',
+      isPassed: true,
+    };
+  }
+
+  if (room.type === 'MERCHANT') {
+    return {
+      title: room.title || "Olaf's Wandering Trading Post",
+      description: room.description || 'A colorful wooden pack cart illuminated by brass lanterns sits peacefully with wares.',
+      statusBadge: 'Trading Post',
       isPassed: true,
     };
   }
@@ -452,15 +462,14 @@ export function getRoomDisplayInfo(room: DungeonRoom): {
 /**
  * Procedurally generates a 4x4 Burgle Bros-style dungeon floor grid (16 tiles) with walls & boss chamber
  * Prescriptive Composition:
- * - 1 Entrance (Dungeon Hearth) at (0,0) [1,1]
+ * - 1 Entrance (Olaf's Trading Post Merchant) at (0,0) [1,1]
  * - 1 Boss / Stair room placed randomly in candidates
  * - 7 Monsters (4 Low-Strength / Grinding monsters + 3 Mid-Strength monsters)
  * - 3 Traps (Requiring Skill/DEX/INT/STR/LCK checks to deactivate)
- * - 1 Vault (Treasure chest)
- * - 1 Shop (Merchant outpost)
+ * - 2 Vaults (Treasure chests)
  * - 1 Shrine (Divine blessing altar)
  * - 1 Secrets room (Hidden wall compartment)
- * Total: 1 + 1 + 7 + 3 + 1 + 1 + 1 + 1 = 16 tiles!
+ * Total: 1 + 1 + 7 + 3 + 2 + 1 + 1 = 16 tiles!
  */
 export function generateDungeonFloor(floorNumber: number): DungeonFloor {
   const meta = FLOOR_METADATA.find((m) => m.floorNumber === floorNumber) || FLOOR_METADATA[0];
@@ -493,8 +502,7 @@ export function generateDungeonFloor(floorNumber: number): DungeonFloor {
   }
 
   // 4. Build the exact 14 prescriptive room cards deck:
-  // - 1 Vault (Treasure chest)
-  // - 1 Shop (Merchant)
+  // - 2 Vaults (Treasure chests - Hearth replaced with second treasure room)
   // - 1 Shrine (Divine blessing altar)
   // - 1 Secret room (Hidden wall compartment)
   // - 3 Traps
@@ -502,7 +510,7 @@ export function generateDungeonFloor(floorNumber: number): DungeonFloor {
   // - 3 Mid-strength monsters (impactful threat + loot)
   const roomDeck: PrescriptiveRoomCard[] = [
     { kind: 'TREASURE' },
-    { kind: 'MERCHANT' },
+    { kind: 'TREASURE' },
     { kind: 'SHRINE' },
     { kind: 'SECRET' },
     { kind: 'TRAP' },
@@ -649,10 +657,10 @@ export function generateDungeonFloor(floorNumber: number): DungeonFloor {
     let secret: DungeonRoom['secret'];
 
     if (isStart) {
-      type = 'CAMPFIRE';
-      title = 'Dungeon Hearth (Entrance)';
-      description = 'A circle of warm embers and shelter at the entrance staircase.';
-      flavorText = 'Safe haven to prepare your weapons, study spells, and rest before plunging deeper.';
+      type = 'MERCHANT';
+      title = "Olaf's Wandering Trading Post (Entrance)";
+      description = 'A colorful wooden pack cart illuminated by brass lanterns sits peacefully at the entrance staircase.';
+      flavorText = '“Greetings, adventurer! Trade your gathered gold for potions, keys, weapons, and iron rations.”';
     } else if (isBoss) {
       type = 'BOSS_ROOM';
       monster = getMonsterForFloor(floorNumber, 'boss');

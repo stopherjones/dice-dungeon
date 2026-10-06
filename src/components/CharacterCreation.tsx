@@ -35,7 +35,7 @@ import {
 import { CharacterStats, HeroCharacter, HeroClassId, StatType } from '../types/game';
 import { HERO_CLASSES } from '../data/classes';
 import { ITEMS_DATABASE } from '../data/items';
-import { syncHeroSupplies } from '../utils/inventory';
+import { canHeroEquipItem, syncHeroSupplies } from '../utils/inventory';
 import { getHeroSkillsForLevel } from '../utils/skills';
 import { STARTING_BOON_TABLE, StartingBoon, TableRow } from '../data/tables';
 import { LookupTableRoller } from './LookupTableRoller';
@@ -390,15 +390,81 @@ export const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacte
     const equipment: HeroCharacter['equipment'] = {};
     const inventory: HeroCharacter['inventory'] = [];
 
+    const tempHeroForCheck: HeroCharacter = {
+      name: characterName.trim() || 'Nameless Explorer',
+      classId: selectedClass.id,
+      destinyProfile: destinyDiagnosis
+        ? {
+            label: destinyDiagnosis.label,
+            title: destinyDiagnosis.title,
+            race: destinyDiagnosis.race.name,
+            raceTrait: destinyDiagnosis.race.trait,
+            summary: destinyDiagnosis.reason,
+          }
+        : undefined,
+      level: 1,
+      xp: 0,
+      xpToNextLevel: 100,
+      currentHp: 10,
+      maxHp: 10,
+      currentMana: 10,
+      maxMana: 10,
+      stats: { ...stats },
+      baseStats: { ...stats },
+      equipment: {},
+      inventory: [],
+      skills: [],
+      activeEffects: [],
+      maxInventorySlots: 15,
+      gold: 0,
+      rerollTokens: 1,
+      rations: 3,
+      torches: 2,
+      lockpicks: 0,
+      statsHistory: {
+        roomsExplored: 1,
+        monstersSlain: 0,
+        chestsOpened: 0,
+        trapsDisarmed: 0,
+        goldCollected: 0,
+        highestDamageDealt: 0,
+        critsRolled: 0,
+        turnsSurvived: 0,
+      },
+    };
+
     // Starting Class Gear
     selectedClass.startingEquipment.forEach((itemId) => {
       const item = ITEMS_DATABASE[itemId];
       if (!item) return;
 
       if (item.type === 'weapon' && !equipment.weapon) {
-        equipment.weapon = item;
+        if (canHeroEquipItem(tempHeroForCheck, item, 'weapon').canEquip) {
+          equipment.weapon = item;
+        } else {
+          // Cannot equip default starting weapon (e.g. Halfling/Gnome with Broadsword or low rolled stat)
+          // Store class weapon in pack so player can trade or sell it
+          inventory.push({ item, quantity: 1 });
+          const heroRace = destinyDiagnosis?.race.name;
+          if (heroRace === 'Halfling' && ITEMS_DATABASE['halfling_kukri']) {
+            equipment.weapon = ITEMS_DATABASE['halfling_kukri'];
+          } else if (heroRace === 'Gnome' && ITEMS_DATABASE['gnomish_clockwork_pistol']) {
+            equipment.weapon = ITEMS_DATABASE['gnomish_clockwork_pistol'];
+          } else if (
+            ITEMS_DATABASE['iron_shortsword'] &&
+            canHeroEquipItem(tempHeroForCheck, ITEMS_DATABASE['iron_shortsword'], 'weapon').canEquip
+          ) {
+            equipment.weapon = ITEMS_DATABASE['iron_shortsword'];
+          } else if (ITEMS_DATABASE['rusty_dagger']) {
+            equipment.weapon = ITEMS_DATABASE['rusty_dagger'];
+          }
+        }
       } else if (item.type === 'shield' && !equipment.offhand) {
-        equipment.offhand = item;
+        if (canHeroEquipItem(tempHeroForCheck, item, 'offhand').canEquip) {
+          equipment.offhand = item;
+        } else {
+          inventory.push({ item, quantity: 1 });
+        }
       } else if (item.type === 'armor' && !equipment.armor) {
         equipment.armor = item;
       } else if (item.type === 'helmet' && !equipment.helmet) {
@@ -697,16 +763,11 @@ export const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacte
         {currentStep === 'DESTINY_REVEAL' && destinyDiagnosis && (
           <div className="w-full max-w-3xl bg-[#18120c]/95 border-2 border-amber-600 rounded-xl p-4 sm:p-6 shadow-2xl backdrop-blur-md text-amber-100 space-y-5 animate-fadeIn">
             {/* Header Banner */}
-            <div className="border-b border-amber-900/60 pb-3 flex items-start justify-between gap-2 sm:gap-4">
-              <div className="min-w-0 flex-1">
-                <h3 className="text-xl sm:text-3xl font-serif font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-amber-400 to-amber-200 mt-1 leading-tight">
-                  {destinyDiagnosis.title}
-                </h3>
-                <p className="mt-1 text-xs text-stone-400 font-serif">{destinyDiagnosis.race.trait}</p>
-              </div>
-              <div className="w-10 h-10 sm:w-12 sm:h-12 shrink-0 grid place-items-center bg-amber-500/20 border border-amber-500 rounded-xl text-amber-400">
-                {getClassIcon(selectedClass.icon)}
-              </div>
+            <div className="border-b border-amber-900/60 pb-3">
+              <h3 className="text-xl sm:text-3xl font-serif font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-amber-400 to-amber-200 mt-1 leading-tight">
+                {destinyDiagnosis.title}
+              </h3>
+              <p className="mt-1 text-xs text-stone-400 font-serif">{destinyDiagnosis.race.trait}</p>
             </div>
 
             {/* Narrative Reasoning Box */}
@@ -723,22 +784,25 @@ export const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacte
                 {STAT_ORDER.map(({ key }) => {
                   const val = stats[key];
                   const mod = getStatModifier(val);
-                  const isHigh = val >= 15;
+                  const isHigh = val >= 13;
                   const isLow = val <= 9;
+
                   return (
                     <div
                       key={key}
                       aria-label={`${key}: ${val}${isHigh ? ', high stat' : isLow ? ', low stat' : ''}`}
-                      className={`p-2 rounded-lg border ${
+                      className={`p-2 rounded-lg border transition-all ${
                         isHigh
-                          ? 'bg-emerald-950/70 border-emerald-600'
+                          ? 'bg-emerald-950/70 border-emerald-500 ring-1 ring-emerald-500/50 shadow-[0_0_12px_rgba(16,185,129,0.2)]'
                           : isLow
-                          ? 'bg-red-950/70 border-red-700'
+                          ? 'bg-red-950/70 border-red-600 ring-1 ring-red-600/50 shadow-[0_0_12px_rgba(239,68,68,0.2)]'
                           : 'bg-stone-950/90 border-amber-950'
                       }`}
                     >
                       <div className="text-[10px] text-stone-400">{key}</div>
-                      <div className={`text-base font-black ${isHigh ? 'text-emerald-300' : isLow ? 'text-red-300' : 'text-cyan-300'}`}>{val}</div>
+                      <div className={`text-base font-black ${isHigh ? 'text-emerald-300' : isLow ? 'text-red-300' : 'text-stone-200'}`}>
+                        {val}
+                      </div>
                       <div className="text-[10px] font-bold text-amber-400">
                         {mod >= 0 ? `+${mod}` : mod}
                       </div>
@@ -895,7 +959,7 @@ export const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacte
                 <div className="grid grid-cols-5 gap-1.5 text-center font-mono">
                   {STAT_ORDER.map(({ key }) => {
                     const value = stats[key];
-                    const isHigh = value >= 15;
+                    const isHigh = value >= 13;
                     const isLow = value <= 9;
                     const modifier = getStatModifier(value);
                     return (
@@ -1045,21 +1109,7 @@ export const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacte
 
           {currentStep === 'DESTINY_REVEAL' && (
             <>
-              {/* 1. Sub-bar: Reroll all / Fate tokens summary */}
-              <div className="flex items-center justify-between text-xs font-mono px-1">
-                <button
-                  onClick={handleRestartRolls}
-                  className="text-stone-400 hover:text-amber-200 transition-colors flex items-center gap-1 cursor-pointer"
-                >
-                  <RefreshCw className="w-3 h-3 text-stone-400" />
-                  <span>Reroll All Attributes</span>
-                </button>
-                <span className="text-amber-300 font-bold">
-                  {selectedClass.name} • {destinyDiagnosis?.fateTokenCount ?? 1} Fate Tokens
-                </span>
-              </div>
-
-              {/* 2. Primary CTA: "Accept calling" */}
+              {/* Primary CTA: "Accept calling" */}
               <button
                 id="btn-confirm-destiny"
                 onClick={() => setCurrentStep('BOON_ROLL')}
@@ -1069,7 +1119,7 @@ export const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacte
                 <ChevronRight className="w-4 h-4 text-stone-950" />
               </button>
 
-              {/* 3. Subtext matching Step 1 footer height */}
+              {/* Subtext matching Step 1 footer height */}
               <div className="flex items-center justify-center gap-2 text-xs text-stone-400 font-mono py-0.5">
                 <span>Class Calling Assigned • Step 2 of 4</span>
               </div>

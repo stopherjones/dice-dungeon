@@ -57,6 +57,14 @@ export interface HeroDestinyProfile {
   summary: string;
 }
 
+export interface ItemRequirements {
+  minStats?: Partial<Record<StatType, number>>;
+  allowedClasses?: HeroClassId[];
+  restrictedClasses?: HeroClassId[];
+  allowedRaces?: string[];
+  restrictedRaces?: string[];
+}
+
 export type ItemRarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
 export type ItemType = 'weapon' | 'shield' | 'armor' | 'helmet' | 'boots' | 'ring' | 'amulet' | 'potion' | 'scroll' | 'tool' | 'treasure';
 
@@ -79,6 +87,9 @@ export interface GameItem {
   armorBonus?: number;
   damageDice?: string; // e.g. "1d8", "2d6"
   bonusDamage?: number;
+  enemyAcReduction?: number; // Flat enemy AC sunder/reduction (e.g. 2 for -2 AC)
+  enemyAcReductionPerLevel?: number; // Enemy AC reduction scaling per hero level (e.g. 1 for -1*Level AC)
+  requirements?: ItemRequirements;
   healHp?: number;
   healMana?: number;
   healEnergy?: number;

@@ -527,6 +527,23 @@ export const RulesCodexView: React.FC<RulesCodexViewProps> = ({
                   Roll 1d20 + DEX/LCK vs <strong>Escape DC (10 + Monster Level)</strong>. Costs 0 EP. Success retreats you safely to the previous chamber.
                 </p>
               </div>
+
+              {/* Weapon Sunder & Requirements Codex Card */}
+              <div className="bg-[#1a110a] p-3 rounded-xl border border-amber-900/60 space-y-2">
+                <div className="flex items-center gap-1.5 text-amber-300 font-bold text-xs">
+                  <Sword className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Weapon Armor Sunder & Item Requirements</span>
+                </div>
+                <p className="text-[11px] text-stone-300 leading-relaxed">
+                  <strong>Enemy AC Reduction:</strong> Weapons sunder monster defenses directly (e.g. -1 AC, -2 AC, or -1x Level AC) instead of buffing hero stats. Lowering enemy AC makes your d20 attack rolls connect much more reliably.
+                </p>
+                <p className="text-[11px] text-stone-300 leading-relaxed">
+                  <strong>Requirements & Heritage:</strong> Powerful weapons require minimum attributes (including bonuses from amulets and rings), specific classes (e.g. staves for Wizards), or specific races (e.g. Stone-Splitter for Dwarves; two-handed Broadswords are too heavy for Halflings and Gnomes).
+                </p>
+                <p className="text-[11px] text-amber-200/90 leading-relaxed italic">
+                  <strong>Loot & Trade:</strong> Any item can appear in dungeon chests or merchant carts. If you cannot wield an item, you can keep it in your backpack or sell it to Olaf the Merchant for gold!
+                </p>
+              </div>
             </div>
           </div>
         )}

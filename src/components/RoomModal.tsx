@@ -17,6 +17,7 @@ import { RoomView } from './RoomView';
 import type { RoomPrimaryAction } from './RoomView';
 import { CombatView } from './CombatView';
 import { getStatModifier } from '../utils/dice';
+import { getWeaponAcReduction } from '../utils/inventory';
 
 interface RoomModalProps {
   isOpen: boolean;
@@ -272,12 +273,23 @@ export const RoomModal: React.FC<RoomModalProps> = ({
                     </div>
 
                     {/* Monster AC at top right (no shield icon) */}
-                    <div
-                      className="flex items-center bg-[#100a06] px-1.5 py-0.5 rounded border border-stone-800 text-[10px] sm:text-xs font-mono shrink-0"
-                      title={`Armor Class: ${combat.monster.armorClass}`}
-                    >
-                      <span className="font-bold text-amber-300">AC {combat.monster.armorClass}</span>
-                    </div>
+                    {(() => {
+                      const weaponReduction = getWeaponAcReduction(hero.equipment.weapon, hero.level);
+                      const effectiveMonsterAc = Math.max(1, combat.monster.armorClass - weaponReduction);
+                      return (
+                        <div
+                          className="flex items-center gap-1 bg-[#100a06] px-1.5 py-0.5 rounded border border-stone-800 text-[10px] sm:text-xs font-mono shrink-0"
+                          title={`Base Armor Class: ${combat.monster.armorClass}${weaponReduction > 0 ? ` (-${weaponReduction} sundered by ${hero.equipment.weapon?.name})` : ''}`}
+                        >
+                          <span className="font-bold text-amber-300">AC {effectiveMonsterAc}</span>
+                          {weaponReduction > 0 && (
+                            <span className="text-[9px] font-bold text-emerald-400">
+                              (-{weaponReduction})
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </div>
 
                   {/* Second row: Enemy panel has HP (no heart icon) */}
