@@ -443,7 +443,7 @@
       {
         "top": "LCK",
         "low": "DEX",
-        "class": "rogue",
+        "class": "jester",
         "label": "Clumsy Charmer",
         "verdictTag": "LANDS ON THEIR FEET (OFTEN)",
         "note": "You trip, you stumble ({DEX} DEX), and somehow it always works out ({LCK} LCK)."

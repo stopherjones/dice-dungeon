@@ -3,38 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { ClassDefinition, GameItem } from '../types/game';
-import { ITEMS_DATABASE } from './items';
-import destiny from './destiny.json';
-
-type GearHighlight = NonNullable<ClassDefinition['gearHighlights']>[number];
-
-/** Fate tokens live in destiny.json; read them here so descriptions never drift. */
-const fateTokens = (classId: string): number =>
-  (destiny.classes as Record<string, { fateTokens: number }>)[classId].fateTokens;
-
-/** Bonus text built from the item's own data, e.g. "1d8+2 Dmg (-2 Enemy AC)" or "+3 Armor (+1 CON)". */
-function bonusText(items: GameItem[]): string {
-  const weapon = items.find((i) => i.type === 'weapon');
-  if (weapon) {
-    const ac = weapon.enemyAcReductionPerLevel
-      ? `-${weapon.enemyAcReductionPerLevel}x Lv Enemy AC`
-      : weapon.enemyAcReduction ? `-${weapon.enemyAcReduction} Enemy AC` : '';
-    const notes = [ac, weapon.specialEffect === 'SMASH_WALL' ? 'Smashes walls' : ''].filter(Boolean).join(' & ');
-    return `${weapon.damageDice}${weapon.bonusDamage ? `+${weapon.bonusDamage}` : ''} Dmg${notes ? ` (${notes})` : ''}`;
-  }
-  const armor = items.reduce((n, i) => n + (i.armorBonus ?? 0), 0);
-  const stats: Record<string, number> = {};
-  items.forEach((i) => Object.entries(i.statBonuses ?? {}).forEach(([k, v]) => { stats[k] = (stats[k] ?? 0) + (v as number); }));
-  const statText = Object.entries(stats).map(([k, v]) => `+${v} ${k}`).join(', ');
-  return armor ? `+${armor} Armor${statText ? ` (${statText})` : ''}` : statText;
-}
-
-/** One gear highlight from real item data. Pass several ids to combine them (e.g. helm + mail). */
-function highlight(ids: string | string[], type: string, o: { name?: string; bonus?: string } = {}): GearHighlight {
-  const items = (Array.isArray(ids) ? ids : [ids]).map((id) => ITEMS_DATABASE[id]);
-  return { name: o.name ?? items[0].name, type, bonus: o.bonus ?? bonusText(items), icon: items[0].icon as string };
-}
+import { ClassDefinition } from '../types/game';
 
 export const HERO_CLASSES: ClassDefinition[] = [
   {
@@ -57,9 +26,9 @@ export const HERO_CLASSES: ClassDefinition[] = [
     startingGold: 15,
     startingEquipment: ['steel_broadsword', 'iron_kite_shield', 'chainmail_hauberk', 'dungeon_ration', 'dungeon_torch', 'minor_healing_potion'],
     gearHighlights: [
-      highlight('steel_broadsword', 'Martial Blade'),
-      highlight('iron_kite_shield', 'Heavy Shield'),
-      highlight('chainmail_hauberk', 'Armor'),
+      { name: 'Steel Broadsword', type: 'Martial Blade', bonus: '1d8+2 Dmg (-1x Lv Enemy AC)', icon: 'Sword' },
+      { name: 'Iron Kite Shield', type: 'Heavy Shield', bonus: '+2 Armor (+1 CON)', icon: 'Shield' },
+      { name: 'Chainmail Hauberk', type: 'Armor', bonus: '+3 Armor (+1 CON)', icon: 'ShieldCheck' },
     ],
     icon: 'Shield',
     skills: [
@@ -101,7 +70,7 @@ export const HERO_CLASSES: ClassDefinition[] = [
     id: 'rogue',
     name: 'Rogue',
     title: 'Shadowblade Infiltrator',
-    description: `Agile shadow-walker skilled in pinpoint critical strikes, disarming traps, picking locks, and dodging danger. Starts with 1 Reusable Lockpick Kit and ${fateTokens('rogue')} Fate Reroll Tokens.`,
+    description: 'Agile shadow-walker skilled in pinpoint critical strikes, disarming traps, picking locks, and dodging danger. Starts with 1 Reusable Lockpick Kit and 2 Fate Reroll Tokens.',
     primaryStat: 'DEX',
     primaryStatBoost: 3,
     statBonuses: { DEX: 3, LCK: 2 },
@@ -117,9 +86,9 @@ export const HERO_CLASSES: ClassDefinition[] = [
     startingGold: 25,
     startingEquipment: ['shadow_stiletto', 'leather_tunic', 'brass_spyglass', 'iron_lockpick', 'minor_healing_potion'],
     gearHighlights: [
-      highlight('shadow_stiletto', 'Finesse Dagger'),
-      highlight('brass_spyglass', 'Reusable Tool', { bonus: 'Scouts adjacent rooms without torches' }),
-      highlight('iron_lockpick', 'Reusable Tool', { bonus: '1x Reusable Kit (+3 Lockpicking)' }),
+      { name: 'Shadowfang Stiletto', type: 'Finesse Dagger', bonus: '1d6+3 Dmg (-2 Enemy AC)', icon: 'Zap' },
+      { name: "Burglar's Spyglass", type: 'Reusable Tool', bonus: 'Scouts adjacent rooms without torches', icon: 'Compass' },
+      { name: "Thieves' Lockpick Kit", type: 'Reusable Tool', bonus: '1x Reusable Kit (+3 Lockpicking)', icon: 'Key' },
     ],
     icon: 'Zap',
     skills: [
@@ -176,9 +145,9 @@ export const HERO_CLASSES: ClassDefinition[] = [
     startingGold: 20,
     startingEquipment: ['runic_spellstaff', 'spellbook_offhand', 'leather_tunic', 'scroll_of_fireball', 'mana_draught', 'dungeon_torch'],
     gearHighlights: [
-      highlight('runic_spellstaff', 'Arcane Staff'),
-      highlight('spellbook_offhand', 'Grimoire'),
-      highlight('scroll_of_fireball', 'Spell Scroll', { bonus: '3d8 Fire Damage' }),
+      { name: 'Runic Spellstaff', type: 'Arcane Staff', bonus: '1d6+2 Dmg (-1x Lv Enemy AC)', icon: 'Wand' },
+      { name: 'Tome of Minor Wards', type: 'Grimoire', bonus: '+1 Armor (+2 INT Focus)', icon: 'BookOpen' },
+      { name: 'Scroll of Fireball', type: 'Spell Scroll', bonus: '3d8 Fire Blast AoE Damage', icon: 'Sparkles' },
     ],
     icon: 'Sparkles',
     skills: [
@@ -236,21 +205,21 @@ export const HERO_CLASSES: ClassDefinition[] = [
     startingGold: 18,
     startingEquipment: ['blessed_warhammer', 'iron_kite_shield', 'chainmail_hauberk', 'minor_healing_potion', 'mana_draught', 'dungeon_ration'],
     gearHighlights: [
-      highlight('blessed_warhammer', 'Holy Weapon'),
-      highlight('iron_kite_shield', 'Shield'),
-      highlight('chainmail_hauberk', 'Armor'),
+      { name: 'Blessed Sunhammer', type: 'Holy Weapon', bonus: '1d8+2 Dmg (-3 Enemy AC)', icon: 'Hammer' },
+      { name: 'Iron Kite Shield', type: 'Shield', bonus: '+2 Armor (+1 CON)', icon: 'ShieldAlert' },
+      { name: 'Chainmail Hauberk', type: 'Armor', bonus: '+3 Armor (+1 CON)', icon: 'Shield' },
     ],
     icon: 'Sun',
     skills: [
       {
         id: 'smite',
         name: 'Radiant Smite',
-        description: 'Infuse your weapon with blinding solar radiance (Rolls 1d8+CON Holy damage).',
+        description: 'Infuse your weapon with blinding solar radiance (Rolls 1d8+STR + 1d6 Holy damage).',
         manaCost: 5,
         energyCost: 5,
         cooldownTurns: 1,
         type: 'attack',
-        diceFormula: '1d8+CON',
+        diceFormula: '1d8+STR',
         icon: 'Sun',
       },
       {
@@ -282,7 +251,7 @@ export const HERO_CLASSES: ClassDefinition[] = [
     title: 'Knight of the Sun',
     description: 'Stalwart holy crusader armed with heavy plate and divine smites. High defense and resilient endurance.',
     primaryStat: 'STR',
-    primaryStatBoost: 2,
+    primaryStatBoost: 3,
     statBonuses: { STR: 2, CON: 2, INT: 1 },
     baseStats: {
       STR: 15,
@@ -296,16 +265,16 @@ export const HERO_CLASSES: ClassDefinition[] = [
     startingGold: 15,
     startingEquipment: ['wall_axe', 'iron_kite_shield', 'iron_helm', 'chainmail_hauberk', 'minor_healing_potion', 'dungeon_torch'],
     gearHighlights: [
-      highlight('wall_axe', 'Consecrated Battleaxe'),
-      highlight('iron_kite_shield', 'Shield'),
-      highlight(['iron_helm', 'chainmail_hauberk'], 'Heavy Armor', { name: 'Iron Bascinet & Mail' }),
+      { name: 'Crusader Wall Axe', type: 'Consecrated Battleaxe', bonus: '1d8+2 Dmg (-2 Enemy AC & Smashes walls)', icon: 'Hammer' },
+      { name: 'Iron Kite Shield', type: 'Shield', bonus: '+2 Armor (+1 CON)', icon: 'ShieldAlert' },
+      { name: 'Iron Bascinet & Mail', type: 'Heavy Armor', bonus: '+4 Armor (+2 CON)', icon: 'Crown' },
     ],
     icon: 'ShieldAlert',
     skills: [
       {
         id: 'holy_strike',
         name: 'Crusader Strike',
-        description: 'A disciplined blow glowing with divine fury (Rolls 1d10+STR damage).',
+        description: 'A disciplined sword blow glowing with divine fury (Rolls 1d10+STR damage).',
         manaCost: 5,
         energyCost: 5,
         cooldownTurns: 1,
@@ -356,9 +325,9 @@ export const HERO_CLASSES: ClassDefinition[] = [
     startingGold: 22,
     startingEquipment: ['hunting_bow', 'leather_tunic', 'adventurers_boots', 'minor_healing_potion', 'iron_lockpick', 'dungeon_torch'],
     gearHighlights: [
-      highlight('hunting_bow', 'Masterwork Bow'),
-      highlight('adventurers_boots', 'Boots'),
-      highlight('leather_tunic', 'Armor'),
+      { name: 'Recurve Yew Bow', type: 'Masterwork Bow', bonus: '1d8+2 Dmg (-1 Enemy AC)', icon: 'Target' },
+      { name: 'Sturdy Tracker Boots', type: 'Boots', bonus: '+1 Armor (+1 DEX, Trap Evasion)', icon: 'Footprints' },
+      { name: 'Padded Scout Tunic', type: 'Armor', bonus: '+1 Armor (+1 DEX)', icon: 'Shirt' },
     ],
     icon: 'Target',
     skills: [
@@ -416,9 +385,9 @@ export const HERO_CLASSES: ClassDefinition[] = [
     startingGold: 25,
     startingEquipment: ['gilded_longsword', 'heros_crest_shield', 'champions_breastplate', 'minor_healing_potion', 'dungeon_ration', 'dungeon_torch'],
     gearHighlights: [
-      highlight('gilded_longsword', 'Martial Blade'),
-      highlight('heros_crest_shield', 'Heater Shield'),
-      highlight('champions_breastplate', 'Heavy Plate'),
+      { name: "Champion's Gilded Longsword", type: 'Martial Blade', bonus: '1d8+2 Dmg (-2 Enemy AC)', icon: 'Sword' },
+      { name: "Hero's Crest Shield", type: 'Heater Shield', bonus: '+2 Armor (+1 CON)', icon: 'Shield' },
+      { name: "Champion's Gilded Cuirass", type: 'Heavy Plate', bonus: '+4 Armor (+1 STR, +1 CON)', icon: 'ShieldCheck' },
     ],
     icon: 'Crown',
     skills: [
@@ -460,9 +429,9 @@ export const HERO_CLASSES: ClassDefinition[] = [
     id: 'jester',
     name: 'Jester',
     title: 'The Unlikely Fool',
-    description: `Laughed out of the martial academy with mediocre scores, you don the bells and motley. Armed with sheer audacity, ${fateTokens('jester')} Fate Tokens, and ridiculous luck.`,
+    description: 'Laughed out of the martial academy with mediocre scores, you don the bells and motley. Armed with sheer audacity, 4 Fate Tokens, and ridiculous luck.',
     primaryStat: 'LCK',
-    primaryStatBoost: 4,
+    primaryStatBoost: 3,
     statBonuses: { LCK: 4, DEX: 1 },
     baseStats: {
       STR: 9,
@@ -476,9 +445,9 @@ export const HERO_CLASSES: ClassDefinition[] = [
     startingGold: 30,
     startingEquipment: ['jesters_scepter', 'motley_tunic', 'trick_dice', 'minor_healing_potion', 'dungeon_ration'],
     gearHighlights: [
-      highlight('jesters_scepter', 'Trick Wand', { name: "Jester's Marotte & Bells" }),
-      highlight('motley_tunic', 'Agile Suit'),
-      highlight('trick_dice', 'Lucky Trinket', { bonus: `+2 LCK & ${fateTokens('jester')}x Starting Fate Tokens` }),
+      { name: "Jester's Marotte & Bells", type: 'Trick Wand', bonus: '1d6+1 Dmg (-1 Enemy AC)', icon: 'Sparkles' },
+      { name: "Jester's Motley Tunic", type: 'Agile Suit', bonus: '+1 Armor (+2 DEX, +2 LCK)', icon: 'Shirt' },
+      { name: 'Loaded Trick Die', type: 'Lucky Trinket', bonus: '+2 LCK & 4x Starting Fate Tokens', icon: 'Dices' },
     ],
     icon: 'Sparkles',
     skills: [
