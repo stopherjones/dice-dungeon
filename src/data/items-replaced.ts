@@ -46,7 +46,8 @@ export const ITEMS_DATABASE: Record<string, GameItem> = {
     bonusDamage: 2,
     enemyAcReductionPerLevel: 1,
     requirements: {
-      minStats: { STR: 11 },
+      minStats: { STR: 12 },
+      restrictedRaces: ['Halfling', 'Gnome'],
     },
     icon: 'Sword',
   },
@@ -77,8 +78,7 @@ export const ITEMS_DATABASE: Record<string, GameItem> = {
     bonusDamage: 2,
     enemyAcReduction: 2,
     requirements: {
-      minStats: { STR: 12 },
-      allowedClasses: ['paladin', 'warrior', 'hero'],
+      minStats: { STR: 14 },
       restrictedRaces: ['Halfling'],
     },
     specialEffect: 'SMASH_WALL',
@@ -96,7 +96,7 @@ export const ITEMS_DATABASE: Record<string, GameItem> = {
     bonusDamage: 2,
     enemyAcReduction: 3,
     requirements: {
-      minStats: { CON: 11 },
+      minStats: { STR: 13, CON: 12 },
       allowedClasses: ['paladin', 'cleric', 'warrior', 'hero'],
     },
     icon: 'Hammer',
@@ -112,7 +112,7 @@ export const ITEMS_DATABASE: Record<string, GameItem> = {
     bonusDamage: 3,
     enemyAcReduction: 2,
     requirements: {
-      minStats: { DEX: 12 },
+      minStats: { DEX: 13 },
       allowedClasses: ['rogue', 'hero', 'jester'],
     },
     icon: 'Zap',
@@ -128,7 +128,7 @@ export const ITEMS_DATABASE: Record<string, GameItem> = {
     bonusDamage: 2,
     enemyAcReductionPerLevel: 1,
     requirements: {
-      minStats: { INT: 12 },
+      minStats: { INT: 14 },
       allowedClasses: ['wizard', 'hero'],
     },
     icon: 'Wand',
@@ -322,7 +322,7 @@ export const ITEMS_DATABASE: Record<string, GameItem> = {
     enemyAcReduction: 2,
     requirements: {
       allowedRaces: ['Tiefling'],
-      minStats: { DEX: 12 },
+      minStats: { LCK: 13 },
     },
     icon: 'Zap',
   },
@@ -846,7 +846,7 @@ export const ITEMS_DATABASE: Record<string, GameItem> = {
     bonusDamage: 2,
     enemyAcReduction: 2,
     requirements: {
-      minStats: { STR: 10, DEX: 10 },
+      minStats: { STR: 12, DEX: 11 },
       allowedClasses: ['hero', 'warrior', 'paladin'],
     },
     icon: 'Sword',
@@ -884,6 +884,7 @@ export const ITEMS_DATABASE: Record<string, GameItem> = {
     bonusDamage: 1,
     enemyAcReduction: 1,
     requirements: {
+      minStats: { LCK: 12 },
       allowedClasses: ['jester'],
     },
     icon: 'Sparkles',

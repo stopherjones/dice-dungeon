@@ -6,10 +6,20 @@
       "callingTitle": "Veteran Warrior of the Vanguard",
       "pitch": "The front line is where you belong."
     },
+    "barbarian": {
+      "fateTokens": 1,
+      "callingTitle": "Raging Barbarian of the Wastes",
+      "pitch": "Rage is your craft, and the wilds are your guild."
+    },
     "paladin": {
       "fateTokens": 1,
       "callingTitle": "Holy Crusader Paladin",
       "pitch": "An oath, a shield and a stubborn heart will do the rest."
+    },
+    "swashbuckler": {
+      "fateTokens": 2,
+      "callingTitle": "Dashing Swashbuckler & Duelist",
+      "pitch": "Steel, flair and a quick quip: the duelling floor is yours."
     },
     "rogue": {
       "fateTokens": 2,
@@ -21,15 +31,35 @@
       "callingTitle": "Wilderness Ranger & Tracker",
       "pitch": "The wild paths know your footsteps."
     },
+    "monk": {
+      "fateTokens": 1,
+      "callingTitle": "Disciplined Monk of the Quiet Path",
+      "pitch": "Discipline is your weapon, and your body is the blade."
+    },
     "wizard": {
       "fateTokens": 1,
       "callingTitle": "Arcane Scholar & Elementalist",
       "pitch": "The arcane arts reward minds like yours."
     },
+    "sorcerer": {
+      "fateTokens": 2,
+      "callingTitle": "Wild-Blooded Sorcerer",
+      "pitch": "Power stirs in your blood, whether you ask for it or not."
+    },
     "cleric": {
       "fateTokens": 1,
       "callingTitle": "Cleric of the Sacred Dawn",
       "pitch": "The faithful will need you at the edge of every battle."
+    },
+    "druid": {
+      "fateTokens": 1,
+      "callingTitle": "Druid of the Old Groves",
+      "pitch": "The old groves speak, and you listen."
+    },
+    "bard": {
+      "fateTokens": 2,
+      "callingTitle": "Silver-Tongued Bard & Rumour-Monger",
+      "pitch": "Every tavern is a stage, and every crowd a story waiting to be told."
     },
     "hero": {
       "fateTokens": 1,
@@ -62,8 +92,7 @@
       "reason": "Blessed with an extraordinary total attribute sum of {total} and high proficiency in mind, body, and fortune, you are a legendary {race} hero chosen for greatness!"
     },
     {
-      "id": "jester",
-      "class": "jester",
+      "id": "underdog",
       "when": [
         {
           "totalMax": 53
@@ -72,10 +101,10 @@
           "maxStatMax": 12
         }
       ],
-      "label": "Fortune's Fool",
-      "callingTitle": "The Dungeon Jester (The Fool)",
+      "label": "Hapless Commoner",
+      "callingTitle": "The Dungeon Underdog",
       "verdictTag": "WHOLLY WEAK ROLLS (PITY OF THE GODS)",
-      "reason": "With not a single attribute breaking past {max} (Total: {total}), every respectable guild shut their doors on you, a humble {race}. You don the bells and motley, armed with sheer audacity, {fateTokens} Fate Rerolls, and ridiculous luck!"
+      "reason": "With not a single attribute breaking past {max} (Total: {total}), every respectable guild shut their doors on you, humble {race}. Blessed with nothing more than pluck and ambition, you'll need all {fateTokens} Fate Rerolls, and ridiculous good luck!"
     }
   ],
   "fallback": {
@@ -153,7 +182,7 @@
       },
       {
         "top": "LCK",
-        "class": "rogue",
+        "class": "bard",
         "label": "Fortune's Favourite",
         "verdictTag": "SILVER TONGUE & LUCK"
       },
@@ -167,7 +196,7 @@
       {
         "top": "STR",
         "second": "DEX",
-        "class": "ranger",
+        "class": "swashbuckler",
         "label": "Dashing Duelist",
         "verdictTag": "STRENGTH & FLAIR"
       },
@@ -195,7 +224,7 @@
       {
         "top": "DEX",
         "second": "CON",
-        "class": "ranger",
+        "class": "monk",
         "label": "Disciplined Wanderer",
         "verdictTag": "BODY AS WEAPON"
       },
@@ -216,7 +245,7 @@
       {
         "top": "CON",
         "second": "STR",
-        "class": "warrior",
+        "class": "barbarian",
         "label": "Enduring Brute",
         "verdictTag": "IMMOVABLE & FIERCE"
       },
@@ -230,7 +259,7 @@
       {
         "top": "CON",
         "second": "INT",
-        "class": "cleric",
+        "class": "druid",
         "label": "Patient Naturalist",
         "verdictTag": "ROOTED & WISE"
       },
@@ -293,7 +322,7 @@
       {
         "top": "LCK",
         "second": "INT",
-        "class": "wizard",
+        "class": "sorcerer",
         "label": "Wild Talent",
         "verdictTag": "POWER BY ACCIDENT"
       },
@@ -316,7 +345,7 @@
       {
         "top": "STR",
         "low": "CON",
-        "class": "warrior",
+        "class": "barbarian",
         "label": "Reckless Berserker",
         "verdictTag": "BURNS BRIGHT, BURNS OUT",
         "note": "Fearsome strength ({STR} STR) in a body that cannot take much punishment ({CON} CON): hit first, hit hard, hit fast."
@@ -387,7 +416,7 @@
       {
         "top": "CON",
         "low": "LCK",
-        "class": "cleric",
+        "class": "druid",
         "label": "Weary Hermit",
         "verdictTag": "SURVIVOR OF HARD YEARS",
         "note": "Fortune never favoured you ({LCK} LCK), but the wilds taught you to endure ({CON} CON)."
@@ -427,7 +456,7 @@
       {
         "top": "LCK",
         "low": "STR",
-        "class": "rogue",
+        "class": "bard",
         "label": "Silver-tongued Weakling",
         "verdictTag": "TALKS THEIR WAY OUT",
         "note": "Fortunate ({LCK} LCK) but feeble ({STR} STR): you win fights by avoiding them."
@@ -435,7 +464,7 @@
       {
         "top": "LCK",
         "low": "CON",
-        "class": "rogue",
+        "class": "bard",
         "label": "Fragile Charmer",
         "verdictTag": "LUCKY, NOT TOUGH",
         "note": "Fortune follows you ({LCK} LCK), because one real wound ({CON} CON) would be enough."
@@ -443,7 +472,7 @@
       {
         "top": "LCK",
         "low": "DEX",
-        "class": "rogue",
+        "class": "bard",
         "label": "Clumsy Charmer",
         "verdictTag": "LANDS ON THEIR FEET (OFTEN)",
         "note": "You trip, you stumble ({DEX} DEX), and somehow it always works out ({LCK} LCK)."
@@ -460,7 +489,7 @@
         "top": "STR",
         "second": "CON",
         "low": "INT",
-        "class": "warrior",
+        "class": "barbarian",
         "label": "Mountain of Muscle",
         "verdictTag": "ALL BRAWN, NO BRAIN"
       },
@@ -476,7 +505,7 @@
         "top": "STR",
         "second": "DEX",
         "low": "INT",
-        "class": "ranger",
+        "class": "swashbuckler",
         "label": "Reckless Duelist",
         "verdictTag": "ALL GUTS, NO PLAN"
       },
@@ -500,7 +529,7 @@
         "top": "DEX",
         "second": "CON",
         "low": "INT",
-        "class": "ranger",
+        "class": "monk",
         "label": "Quiet-minded Fighter",
         "verdictTag": "BODY ABOVE ALL"
       },
@@ -540,7 +569,7 @@
         "top": "LCK",
         "second": "INT",
         "low": "CON",
-        "class": "wizard",
+        "class": "sorcerer",
         "label": "Volatile Prodigy",
         "verdictTag": "POWER THAT CAN'T BE CONTROLLED"
       }
