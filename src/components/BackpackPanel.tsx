@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Package,
   X,
@@ -62,6 +62,17 @@ export const BackpackPanel: React.FC<BackpackPanelProps> = ({
 }) => {
   const [inspectTarget, setInspectTarget] = useState<InspectTarget>(null);
   const [filter, setFilter] = useState<ItemFilter>('ALL');
+
+  // Close inspector on Escape key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && inspectTarget) {
+        setInspectTarget(null);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [inspectTarget]);
 
   // Equip Item
   const handleEquipItem = (invIdx: number) => {
@@ -550,32 +561,44 @@ export const BackpackPanel: React.FC<BackpackPanelProps> = ({
             </div>
           )}
 
-          {/* Quick Item Inspector within the Panel */}
+          {/* Item Inspector Pop-up / Modal */}
           {inspectTarget && (
-            <div className="mt-2 p-3 bg-[#19110a] border-2 border-[#946e3e] rounded-xl shadow-lg animate-fade-in flex flex-col gap-2.5">
-              <div className="flex items-start justify-between border-b border-[#4d3521] pb-2">
-                <div className="flex items-center gap-2">
-                  <div className="p-1.5 bg-[#120c08] border border-amber-600/70 rounded text-amber-300">
-                    {getItemIcon(inspectTarget.item)}
+            <div
+              id="backpack-item-inspector-overlay"
+              className="fixed inset-0 z-[75] bg-black/80 flex items-center justify-center p-3 sm:p-4 backdrop-blur-sm animate-fade-in"
+              onClick={(e) => {
+                if (e.target === e.currentTarget) setInspectTarget(null);
+              }}
+            >
+              <div
+                id="backpack-item-inspector-modal"
+                className="bg-[#1c130b] border-2 sm:border-4 border-[#946e3e] rounded-2xl max-w-md w-full p-4 sm:p-5 text-stone-200 shadow-2xl relative max-h-[85vh] overflow-y-auto flex flex-col gap-3 animate-scale-in"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="flex items-start justify-between border-b border-[#4d3521] pb-2.5">
+                  <div className="flex items-center gap-2.5">
+                    <div className="p-2 bg-[#120c08] border border-amber-600/70 rounded-lg text-amber-300 shadow-inner">
+                      {getItemIcon(inspectTarget.item)}
+                    </div>
+                    <div>
+                      <h4 className="font-serif font-black text-base sm:text-lg text-[#fae9cb] leading-tight">
+                        {inspectTarget.item.name}
+                      </h4>
+                      <span className="text-[11px] font-mono text-amber-400/80">
+                        {getItemCategoryLabel(inspectTarget.item)} • {inspectTarget.item.value} GP
+                      </span>
+                    </div>
                   </div>
-                  <div>
-                    <h4 className="font-serif font-bold text-sm text-[#fae9cb] leading-tight">
-                      {inspectTarget.item.name}
-                    </h4>
-                    <span className="text-[10px] font-mono text-amber-400/80">
-                      {getItemCategoryLabel(inspectTarget.item)} • {inspectTarget.item.value} GP
-                    </span>
-                  </div>
-                </div>
 
-                <button
-                  onClick={() => setInspectTarget(null)}
-                  className="p-1 text-stone-400 hover:text-stone-200 cursor-pointer"
-                  title="Close Inspector"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
+                  <button
+                    id="btn-close-item-inspector"
+                    onClick={() => setInspectTarget(null)}
+                    className="p-1.5 hover:bg-[#3d2a1c] rounded-lg text-stone-400 hover:text-stone-200 transition-colors cursor-pointer"
+                    title="Close Inspector"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
 
               {/* Stats badges */}
               {(() => {
@@ -805,7 +828,8 @@ export const BackpackPanel: React.FC<BackpackPanelProps> = ({
                 )}
               </div>
             </div>
-          )}
+          </div>
+        )}
         </div>
       </div>
     </div>

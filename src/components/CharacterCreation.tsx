@@ -31,14 +31,17 @@ import {
   Crown,
   Footprints,
   BookOpen,
+  Utensils,
+  X,
+  Table,
 } from 'lucide-react';
-import { CharacterStats, HeroCharacter, HeroClassId, StatType } from '../types/game';
+import { CharacterStats, GameItem, HeroCharacter, HeroClassId, StatType } from '../types/game';
 import { HERO_CLASSES } from '../data/classes';
 import { ITEMS_DATABASE } from '../data/items';
 import { canHeroEquipItem, syncHeroSupplies } from '../utils/inventory';
 import { getHeroSkillsForLevel } from '../utils/skills';
-import { STARTING_BOON_TABLE, StartingBoon, TableRow } from '../data/tables';
-import { LookupTableRoller } from './LookupTableRoller';
+import { LOOT_TABLE_CHEST, LootRewardResult, TableRow, lookupTableRow } from '../data/tables';
+import { DieShape } from './DieShape';
 import { roll4d6DropLowest, getStatModifier, RollResult } from '../utils/dice';
 import { sounds } from '../utils/audio';
 import { determineDestiny, Destiny, suggestName } from '../utils/destiny';
@@ -47,7 +50,22 @@ interface CharacterCreationProps {
   onCharacterCreated: (hero: HeroCharacter) => void;
 }
 
-type CreationStep = 'STATS_ROLL' | 'DESTINY_REVEAL' | 'BOON_ROLL' | 'FINALIZE';
+export type CreationStep = 'STATS_ROLL' | 'DESTINY_REVEAL' | 'TREASURE_ROLL' | 'FINALIZE';
+
+export interface RolledTreasureItem {
+  id: string;
+  rollIndex: number;
+  roll: number;
+  row: TableRow<LootRewardResult>;
+  item: GameItem;
+}
+
+export function getStartingTreasureRollCount(lck: number): number {
+  if (lck >= 16) return 4;
+  if (lck >= 12) return 3;
+  if (lck >= 8) return 2;
+  return 1;
+}
 
 const STAT_ORDER: { key: StatType; label: string; desc: string }[] = [
   { key: 'STR', label: 'Strength', desc: 'Melee weapon damage, physical checks & wall smash' },
@@ -178,11 +196,13 @@ export const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacte
   const [destinyDiagnosis, setDestinyDiagnosis] = useState<Destiny | null>(null);
   const [selectedClassId, setSelectedClassId] = useState<HeroClassId>('warrior');
 
-  // Boon table rolling state (1d6 table roll)
-  const [rolledBoon, setRolledBoon] = useState<StartingBoon | null>(null);
-  const [hasRolledBoon, setHasRolledBoon] = useState(false);
-  const [boonTriggerRoll, setBoonTriggerRoll] = useState(0);
-  const [isBoonRolling, setIsBoonRolling] = useState(false);
+  // Starting Treasure Rolls state (X items based on LCK div 4: 16+=4, 12-15=3, 8-11=2, <=7=1)
+  const [rolledTreasures, setRolledTreasures] = useState<RolledTreasureItem[]>([]);
+  const [isTreasureRolling, setIsTreasureRolling] = useState(false);
+  const [d20RollValue, setD20RollValue] = useState<number | null>(null);
+  const [selectedSlotForReroll, setSelectedSlotForReroll] = useState<number | null>(null);
+  const [showTreasureTableModal, setShowTreasureTableModal] = useState(false);
+  const d20IntervalRef = useRef<number | null>(null);
 
   // Character Name & Fate Tokens
   const [characterName, setCharacterName] = useState('Alden Ironbreaker');
@@ -191,10 +211,18 @@ export const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacte
   const selectedClass =
     HERO_CLASSES.find((c) => c.id === selectedClassId) || HERO_CLASSES[0];
 
+  const treasureRollCount = getStartingTreasureRollCount(stats.LCK);
+  const isAllTreasuresRolled = rolledTreasures.length >= treasureRollCount;
+  const remainingTreasureRolls = Math.max(0, treasureRollCount - rolledTreasures.length);
+
   const clearAllTimers = () => {
     if (rollIntervalRef.current) {
       clearInterval(rollIntervalRef.current);
       rollIntervalRef.current = null;
+    }
+    if (d20IntervalRef.current) {
+      clearInterval(d20IntervalRef.current);
+      d20IntervalRef.current = null;
     }
     if (timer1Ref.current) {
       clearTimeout(timer1Ref.current);
@@ -224,6 +252,17 @@ export const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacte
       cardEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
   }, [activeStatKey, currentStep]);
+
+  // Close treasure table modal on Escape key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && showTreasureTableModal) {
+        setShowTreasureTableModal(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showTreasureTableModal]);
 
   // Roll Single Stat (4d6 drop lowest with sequenced animation stages)
   const handleRollSingleStat = (statKey: StatType, isFateReroll = false) => {
@@ -357,19 +396,115 @@ export const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacte
     setCurrentDroppedIndex(null);
     setAnimatedDiceValues([3, 4, 5, 2]);
     setIsRollingCurrentStat(false);
+    setRolledTreasures([]);
+    setD20RollValue(null);
+    setSelectedSlotForReroll(null);
+    setIsTreasureRolling(false);
+    setShowTreasureTableModal(false);
     setCurrentStep('STATS_ROLL');
   };
 
-  // Handle Starting Boon Roll Complete
-  const handleBoonRollComplete = (res: {
-    roll: number;
-    rollDetails: RollResult;
-    selectedRow: TableRow<StartingBoon>;
-  }) => {
-    setRolledBoon(res.selectedRow.data);
-    setHasRolledBoon(true);
-    setIsBoonRolling(false);
-    sounds.playCoins();
+  // Roll single treasure item on the 1d20 Loot Table with footer d20 tumbling animation
+  const handleRollTreasureItem = (targetSlotIndex?: number) => {
+    if (isTreasureRolling) return;
+    setIsTreasureRolling(true);
+    sounds.playDiceRoll();
+
+    let cycles = 0;
+    const maxCycles = 10;
+    if (d20IntervalRef.current) clearInterval(d20IntervalRef.current);
+    d20IntervalRef.current = window.setInterval(() => {
+      const randomFace = Math.floor(Math.random() * 20) + 1;
+      setD20RollValue(randomFace);
+      cycles++;
+      if (cycles >= maxCycles) {
+        if (d20IntervalRef.current) {
+          clearInterval(d20IntervalRef.current);
+          d20IntervalRef.current = null;
+        }
+      }
+    }, 50);
+
+    setTimeout(() => {
+      if (d20IntervalRef.current) {
+        clearInterval(d20IntervalRef.current);
+        d20IntervalRef.current = null;
+      }
+      const finalRoll = Math.floor(Math.random() * 20) + 1;
+      setD20RollValue(finalRoll);
+      setIsTreasureRolling(false);
+
+      const row = lookupTableRow(LOOT_TABLE_CHEST, finalRoll);
+      const item = row.data.itemId ? ITEMS_DATABASE[row.data.itemId] : null;
+      if (item) {
+        sounds.playLoot();
+        const slotToUse =
+          typeof targetSlotIndex === 'number'
+            ? targetSlotIndex
+            : selectedSlotForReroll !== null
+            ? selectedSlotForReroll
+            : rolledTreasures.length;
+
+        if (slotToUse < rolledTreasures.length) {
+          setRolledTreasures((prev) => {
+            const next = [...prev];
+            next[slotToUse] = {
+              id: `slot-${slotToUse}-${Date.now()}`,
+              rollIndex: slotToUse,
+              roll: finalRoll,
+              row,
+              item,
+            };
+            return next;
+          });
+          setSelectedSlotForReroll(null);
+        } else {
+          setRolledTreasures((prev) => [
+            ...prev,
+            {
+              id: `slot-${prev.length}-${Date.now()}`,
+              rollIndex: prev.length,
+              roll: finalRoll,
+              row,
+              item,
+            },
+          ]);
+        }
+      }
+    }, 550);
+  };
+
+  const handleRollAllRemainingTreasures = () => {
+    const needed = treasureRollCount - rolledTreasures.length;
+    if (needed <= 0 || isTreasureRolling) return;
+    sounds.playDiceRoll();
+    const updated: RolledTreasureItem[] = [...rolledTreasures];
+    let lastRoll = 20;
+    for (let i = 0; i < needed; i++) {
+      const roll = Math.floor(Math.random() * 20) + 1;
+      lastRoll = roll;
+      const row = lookupTableRow(LOOT_TABLE_CHEST, roll);
+      const item = row.data.itemId ? ITEMS_DATABASE[row.data.itemId] : null;
+      if (item) {
+        updated.push({
+          id: `slot-${updated.length}-${Date.now()}-${i}`,
+          rollIndex: updated.length,
+          roll,
+          row,
+          item,
+        });
+      }
+    }
+    setD20RollValue(lastRoll);
+    setRolledTreasures(updated);
+    sounds.playLoot();
+  };
+
+  const handleRerollTreasureSlot = (slotIdx: number) => {
+    if (fateTokens <= 0 || isTreasureRolling) return;
+    setFateTokens((tokens) => Math.max(0, tokens - 1));
+    setSelectedSlotForReroll(slotIdx);
+    handleRollTreasureItem(slotIdx);
   };
 
   const handleRandomName = () => {
@@ -418,8 +553,8 @@ export const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacte
       maxInventorySlots: 15,
       gold: 0,
       rerollTokens: 1,
-      rations: 3,
-      torches: 2,
+      rations: 1,
+      torches: 1,
       lockpicks: 0,
       statsHistory: {
         roomsExplored: 1,
@@ -433,40 +568,76 @@ export const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacte
       },
     };
 
-    // Starting Class Gear
-    selectedClass.startingEquipment.forEach((itemId) => {
-      const item = ITEMS_DATABASE[itemId];
-      if (!item) return;
+    // 1. Class starting weapon & armour
+    const classWeaponId = selectedClass.startingEquipment.find(
+      (itemId) => ITEMS_DATABASE[itemId]?.type === 'weapon'
+    );
+    const classArmorId = selectedClass.startingEquipment.find(
+      (itemId) => ITEMS_DATABASE[itemId]?.type === 'armor'
+    );
 
-      if (item.type === 'weapon' && !equipment.weapon) {
-        if (canHeroEquipItem(tempHeroForCheck, item, 'weapon').canEquip) {
-          equipment.weapon = item;
-        } else {
-          // Cannot equip default starting weapon (e.g. Halfling/Gnome with Broadsword or low rolled stat)
-          // Store class weapon in pack so player can trade or sell it
-          inventory.push({ item, quantity: 1 });
-          const heroRace = destinyDiagnosis?.race.name;
-          if (heroRace === 'Halfling' && ITEMS_DATABASE['halfling_kukri']) {
-            equipment.weapon = ITEMS_DATABASE['halfling_kukri'];
-          } else if (heroRace === 'Gnome' && ITEMS_DATABASE['gnomish_clockwork_pistol']) {
-            equipment.weapon = ITEMS_DATABASE['gnomish_clockwork_pistol'];
-          } else if (
-            ITEMS_DATABASE['iron_shortsword'] &&
-            canHeroEquipItem(tempHeroForCheck, ITEMS_DATABASE['iron_shortsword'], 'weapon').canEquip
-          ) {
-            equipment.weapon = ITEMS_DATABASE['iron_shortsword'];
-          } else if (ITEMS_DATABASE['rusty_dagger']) {
-            equipment.weapon = ITEMS_DATABASE['rusty_dagger'];
-          }
+    if (classWeaponId && ITEMS_DATABASE[classWeaponId]) {
+      const weaponItem = ITEMS_DATABASE[classWeaponId];
+      if (canHeroEquipItem(tempHeroForCheck, weaponItem, 'weapon').canEquip) {
+        equipment.weapon = weaponItem;
+      } else {
+        // Cannot equip default starting weapon (e.g. Halfling/Gnome restrictions or low rolled stat)
+        // Store class weapon in pack so player can trade or sell it
+        inventory.push({ item: weaponItem, quantity: 1 });
+        const heroRace = destinyDiagnosis?.race.name;
+        if (heroRace === 'Halfling' && ITEMS_DATABASE['halfling_kukri']) {
+          equipment.weapon = ITEMS_DATABASE['halfling_kukri'];
+        } else if (heroRace === 'Gnome' && ITEMS_DATABASE['gnomish_clockwork_pistol']) {
+          equipment.weapon = ITEMS_DATABASE['gnomish_clockwork_pistol'];
+        } else if (
+          ITEMS_DATABASE['iron_shortsword'] &&
+          canHeroEquipItem(tempHeroForCheck, ITEMS_DATABASE['iron_shortsword'], 'weapon').canEquip
+        ) {
+          equipment.weapon = ITEMS_DATABASE['iron_shortsword'];
+        } else if (ITEMS_DATABASE['rusty_dagger']) {
+          equipment.weapon = ITEMS_DATABASE['rusty_dagger'];
         }
-      } else if (item.type === 'shield' && !equipment.offhand) {
-        if (canHeroEquipItem(tempHeroForCheck, item, 'offhand').canEquip) {
-          equipment.offhand = item;
-        } else {
-          inventory.push({ item, quantity: 1 });
-        }
-      } else if (item.type === 'armor' && !equipment.armor) {
-        equipment.armor = item;
+      }
+    }
+
+    if (classArmorId && ITEMS_DATABASE[classArmorId]) {
+      equipment.armor = ITEMS_DATABASE[classArmorId];
+    }
+
+    // 2. Base supplies: exactly 1 torch and 1 salted beef ration
+    if (ITEMS_DATABASE['dungeon_torch']) {
+      inventory.push({ item: ITEMS_DATABASE['dungeon_torch'], quantity: 1 });
+    }
+    if (ITEMS_DATABASE['dungeon_ration']) {
+      inventory.push({ item: ITEMS_DATABASE['dungeon_ration'], quantity: 1 });
+    }
+
+    // 3. Additional X items rolled from the treasure lookup table (where X is LCK div 4)
+    const effectiveTreasures = [...rolledTreasures];
+    while (effectiveTreasures.length < treasureRollCount) {
+      const roll = Math.floor(Math.random() * 20) + 1;
+      const row = lookupTableRow(LOOT_TABLE_CHEST, roll);
+      const item = row.data.itemId ? ITEMS_DATABASE[row.data.itemId] : null;
+      if (item) {
+        effectiveTreasures.push({
+          id: `slot-${effectiveTreasures.length}-${Date.now()}`,
+          rollIndex: effectiveTreasures.length,
+          roll,
+          row,
+          item,
+        });
+      }
+    }
+
+    effectiveTreasures.forEach((t) => {
+      const item = t.item;
+      // Auto-equip into empty gear slots if hero meets equip requirements
+      if (
+        item.type === 'shield' &&
+        !equipment.offhand &&
+        canHeroEquipItem(tempHeroForCheck, item, 'offhand').canEquip
+      ) {
+        equipment.offhand = item;
       } else if (item.type === 'helmet' && !equipment.helmet) {
         equipment.helmet = item;
       } else if (item.type === 'boots' && !equipment.boots) {
@@ -480,62 +651,9 @@ export const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacte
       }
     });
 
-    // Apply Boon
-    let startingGold = selectedClass.startingGold;
-    let extraRations = 3;
-    let extraTorches = selectedClassId === 'rogue' ? 0 : 2;
-    let extraRerollTokens = destinyDiagnosis
+    const startingTokens = destinyDiagnosis
       ? destinyDiagnosis.fateTokenCount
-      : selectedClassId === 'rogue'
-      ? 2
       : 1;
-
-    const activeBoon = rolledBoon || STARTING_BOON_TABLE.rows[0].data;
-
-    if (activeBoon) {
-      if (activeBoon.type === 'gold') startingGold += activeBoon.value;
-      if (activeBoon.type === 'lockpicks') {
-        startingGold += 15;
-      }
-      if (activeBoon.type === 'supplies') {
-        extraRations += 3;
-        extraTorches += 2;
-      }
-      if (activeBoon.type === 'tokens') extraRerollTokens += activeBoon.value;
-      if (activeBoon.type === 'item' && activeBoon.itemId) {
-        const boonItem = ITEMS_DATABASE[activeBoon.itemId];
-        if (boonItem) {
-          if (boonItem.type === 'amulet' && !equipment.amulet) {
-            equipment.amulet = boonItem;
-          } else {
-            inventory.push({ item: boonItem, quantity: 1 });
-          }
-        }
-      }
-    }
-
-    // Lockpicks: Rogue and Ranger receive a reusable lockpick set
-    const alreadyHasLockpick = inventory.some((inv) => inv.item.id === 'iron_lockpick');
-    const deservesLockpick =
-      alreadyHasLockpick ||
-      selectedClassId === 'rogue' ||
-      selectedClassId === 'ranger' ||
-      (activeBoon && activeBoon.type === 'lockpicks');
-    if (deservesLockpick && !alreadyHasLockpick && ITEMS_DATABASE['iron_lockpick']) {
-      inventory.push({ item: ITEMS_DATABASE['iron_lockpick'], quantity: 1 });
-    }
-
-    // Supplies into backpack
-    for (let i = 0; i < extraRations; i++) {
-      if (ITEMS_DATABASE['dungeon_ration']) {
-        inventory.push({ item: ITEMS_DATABASE['dungeon_ration'], quantity: 1 });
-      }
-    }
-    for (let i = 0; i < extraTorches; i++) {
-      if (ITEMS_DATABASE['dungeon_torch']) {
-        inventory.push({ item: ITEMS_DATABASE['dungeon_torch'], quantity: 1 });
-      }
-    }
 
     const hero: HeroCharacter = {
       name: characterName.trim() || 'Nameless Explorer',
@@ -561,10 +679,10 @@ export const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacte
       equipment,
       inventory,
       maxInventorySlots: 15,
-      gold: startingGold,
-      rerollTokens: extraRerollTokens,
-      rations: extraRations,
-      torches: extraTorches,
+      gold: selectedClass.startingGold,
+      rerollTokens: startingTokens,
+      rations: 1,
+      torches: 1,
       lockpicks: inventory.filter((inv) => inv.item.id === 'iron_lockpick').length,
       skills: getHeroSkillsForLevel(selectedClass.id, 1),
       activeEffects: [],
@@ -573,7 +691,7 @@ export const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacte
         monstersSlain: 0,
         chestsOpened: 0,
         trapsDisarmed: 0,
-        goldCollected: startingGold,
+        goldCollected: selectedClass.startingGold,
         highestDamageDealt: 0,
         critsRolled: 0,
         turnsSurvived: 0,
@@ -647,10 +765,10 @@ export const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacte
             {[
               { id: 'STATS_ROLL', label: '1. Roll Attributes' },
               { id: 'DESTINY_REVEAL', label: '2. Assigned Calling' },
-              { id: 'BOON_ROLL', label: '3. Roll Heirloom' },
+              { id: 'TREASURE_ROLL', label: '3. Starting Treasure' },
               { id: 'FINALIZE', label: '4. Embark' },
             ].map((s, idx) => {
-              const stepKeys = ['STATS_ROLL', 'DESTINY_REVEAL', 'BOON_ROLL', 'FINALIZE'];
+              const stepKeys = ['STATS_ROLL', 'DESTINY_REVEAL', 'TREASURE_ROLL', 'FINALIZE'];
               const isActive = currentStep === s.id;
               const isDone = stepKeys.indexOf(currentStep) > idx;
 
@@ -864,23 +982,201 @@ export const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacte
         )}
 
         {/* ==================================================== */}
-        {/* STEP 3: ROLL STARTING BOON / HEIRLOOM (1d6 Table Roll) */}
+        {/* STEP 3: STARTING TREASURE ROLLS (LCK div 4 items) */}
         {/* ==================================================== */}
-        {currentStep === 'BOON_ROLL' && (
-          <div className="w-full space-y-4">
-            <LookupTableRoller<StartingBoon>
-              table={STARTING_BOON_TABLE}
-              title="Roll Starting Heirloom & Boon Table"
-              subtitle="Roll 1d6 to inherit a family heirloom, extra gold, lockpicks, or protective amulets for your expedition."
-              actionButtonLabel="Roll Heirloom Table (1d6)"
-              canReroll={true}
-              rerollTokens={fateTokens}
-              onUseRerollToken={() => setFateTokens((t) => Math.max(0, t - 1))}
-              onRollComplete={handleBoonRollComplete}
-              hideHeaderButton={true}
-              externalTrigger={boonTriggerRoll}
-              onRollingStateChange={setIsBoonRolling}
-            />
+        {currentStep === 'TREASURE_ROLL' && (
+          <div className="w-full space-y-4 max-w-3xl">
+            {/* Header info */}
+            <div className="bg-[#18120c]/95 border-2 border-amber-800/60 rounded-xl p-4 shadow-xl backdrop-blur-md text-amber-100 flex items-center justify-between gap-3">
+              <div>
+                <h3 className="text-xl font-bold font-serif text-amber-200">
+                  Starting Treasure Cache
+                </h3>
+                <p className="text-xs text-stone-300 font-serif mt-0.5">
+                  Your Luck attribute entitles you to {treasureRollCount} bonus items rolled from the Dungeon Vault &amp; Chest table (LCK div 4, rounded down).
+                </p>
+              </div>
+
+              {/* Icon button to view the lookup table */}
+              <button
+                id="btn-open-treasure-table-modal"
+                type="button"
+                onClick={() => setShowTreasureTableModal(true)}
+                className="p-2 sm:px-3 sm:py-2 bg-stone-900/90 hover:bg-[#2c1d12] border border-amber-700/70 hover:border-amber-500 rounded-lg text-amber-300 font-mono text-xs flex items-center gap-2 cursor-pointer shadow-md transition-all shrink-0"
+                title="View Loot Table (1d20)"
+                aria-label="View Loot Table"
+              >
+                <Table className="w-4 h-4 text-amber-400" />
+                <span className="hidden sm:inline font-bold">Loot Table</span>
+              </button>
+            </div>
+
+            {/* Treasure Slots Grid */}
+            <div className={`grid gap-2.5 ${treasureRollCount === 1 ? 'grid-cols-1' : treasureRollCount === 2 ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4'}`}>
+              {Array.from({ length: treasureRollCount }).map((_, slotIdx) => {
+                const rolled = rolledTreasures[slotIdx];
+                const isNextSlot = !rolled && slotIdx === rolledTreasures.length;
+
+                if (rolled) {
+                  return (
+                    <div
+                      key={rolled.id || slotIdx}
+                      className="p-3 bg-stone-950/90 rounded-xl border-2 border-amber-600/70 shadow-md flex flex-col justify-between gap-2 relative overflow-hidden"
+                    >
+                      <div className="flex items-center justify-between text-[11px] font-mono border-b border-stone-800 pb-1.5">
+                        <span className="text-amber-400 font-bold">Slot #{slotIdx + 1}</span>
+                        <span className="px-1.5 py-0.2 rounded bg-amber-900/60 text-amber-200 font-bold border border-amber-700/60">
+                          d20: {rolled.roll}
+                        </span>
+                      </div>
+
+                      <div className="my-1">
+                        <div className="font-serif font-bold text-sm text-amber-200 leading-snug">
+                          {rolled.item.name}
+                        </div>
+                        <div className="text-[11px] text-amber-300/90 font-mono mt-0.5 line-clamp-2">
+                          {rolled.row.subtitle || rolled.item.description}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between pt-1 border-t border-stone-900 text-xs">
+                        <span className="text-[10px] uppercase font-mono px-1.5 py-0.5 rounded bg-stone-900 border border-stone-700 text-stone-300">
+                          {rolled.item.type}
+                        </span>
+                        {fateTokens > 0 && (
+                          <button
+                            onClick={() => handleRerollTreasureSlot(slotIdx)}
+                            disabled={isTreasureRolling}
+                            className="text-[11px] font-mono text-purple-300 hover:text-purple-100 flex items-center gap-1 cursor-pointer transition-colors"
+                            title="Reroll this slot using 1 Fate Token"
+                          >
+                            <RefreshCw className="w-3 h-3 text-purple-400" />
+                            <span>Reroll</span>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div
+                    key={slotIdx}
+                    className={`p-3 rounded-xl border-2 border-dashed flex flex-col items-center justify-center text-center gap-1.5 min-h-[110px] transition-all ${
+                      isNextSlot
+                        ? 'border-amber-500/80 bg-amber-950/20 text-amber-300 animate-pulse'
+                        : 'border-stone-800 bg-stone-950/40 text-stone-500'
+                    }`}
+                  >
+                    <Dices className="w-5 h-5 opacity-70" />
+                    <div className="font-mono text-xs font-bold">
+                      Slot #{slotIdx + 1} {isNextSlot ? '• Next Roll' : '• Pending'}
+                    </div>
+                    <div className="text-[11px] font-serif text-stone-400">
+                      {isNextSlot ? 'Ready to roll 1d20' : 'Awaiting roll'}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Treasure Table Modal behind icon */}
+            {showTreasureTableModal && (
+              <div
+                id="treasure-table-modal-overlay"
+                className="fixed inset-0 z-50 bg-black/85 flex items-center justify-center p-3 sm:p-4 backdrop-blur-md animate-fadeIn"
+                onClick={(e) => {
+                  if (e.target === e.currentTarget) setShowTreasureTableModal(false);
+                }}
+              >
+                <div className="bg-[#18120c] border-2 border-amber-800/80 rounded-2xl max-w-2xl w-full p-4 sm:p-5 text-amber-100 shadow-2xl relative max-h-[85vh] flex flex-col">
+                  {/* Modal Header */}
+                  <div className="flex items-center justify-between border-b border-amber-900/50 pb-3 mb-3 shrink-0">
+                    <div className="flex items-center gap-2.5">
+                      <div className="p-2 rounded-lg bg-amber-950/80 border border-amber-700/60 text-amber-400">
+                        <Table className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-serif font-black text-amber-200 leading-tight">
+                          Dungeon Vault &amp; Chest Loot Table (1d20)
+                        </h3>
+                        <p className="text-xs text-amber-400/80 font-mono mt-0.5">
+                          Roll 1d20 to determine each bonus starting item granted by Luck
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      id="btn-close-treasure-table-modal"
+                      onClick={() => setShowTreasureTableModal(false)}
+                      className="p-1.5 hover:bg-stone-800 rounded-lg text-stone-400 hover:text-stone-200 transition-colors cursor-pointer"
+                      title="Close table"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+
+                  {/* Modal Body: Loot Table Rows */}
+                  <div className="flex-1 overflow-y-auto space-y-1.5 pr-1">
+                    {LOOT_TABLE_CHEST.rows.map((row) => {
+                      const rangeText =
+                        row.minRoll === row.maxRoll
+                          ? `[ ${row.minRoll} ]`
+                          : `[ ${row.minRoll} - ${row.maxRoll} ]`;
+                      const isRolled = rolledTreasures.some((t) => t.roll === row.minRoll);
+
+                      return (
+                        <div
+                          key={row.id}
+                          className={`p-2.5 rounded-lg border text-xs transition-all flex items-center justify-between gap-3 ${
+                            isRolled
+                              ? 'bg-amber-900/40 border-amber-400 text-amber-100 shadow-md ring-1 ring-amber-400/50'
+                              : 'bg-stone-900/50 border-stone-800/80 text-stone-300 hover:border-stone-700'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            <span
+                              className={`font-mono font-bold px-2 py-0.5 rounded text-xs shrink-0 ${
+                                isRolled
+                                  ? 'bg-amber-500 text-stone-950 font-black'
+                                  : 'bg-stone-800 text-amber-400/80 border border-stone-700'
+                              }`}
+                            >
+                              {rangeText}
+                            </span>
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-1.5 truncate">
+                                <span
+                                  className={`font-serif font-bold ${
+                                    isRolled ? 'text-amber-200' : 'text-stone-200'
+                                  }`}
+                                >
+                                  {row.name}
+                                </span>
+                                {row.badge && (
+                                  <span className="text-[10px] px-1.5 py-0.2 rounded bg-stone-800 text-stone-400 border border-stone-700 shrink-0">
+                                    {row.badge}
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-[11px] text-stone-400 truncate">
+                                {row.subtitle || row.description}
+                              </p>
+                            </div>
+                          </div>
+
+                          {isRolled && (
+                            <div className="shrink-0 text-amber-400 flex items-center gap-1 font-mono text-[11px] font-bold">
+                              <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                              <span>Rolled</span>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -939,17 +1235,28 @@ export const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacte
                 </div>
 
                 <div>
-                  <div className="text-[11px] font-mono text-stone-400 uppercase">ROLLED HEIRLOOM BOON</div>
-                  <div className="text-xs text-emerald-300 font-semibold flex items-center gap-1.5 mt-0.5">
-                    <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                    <span>{rolledBoon?.grantText || STARTING_BOON_TABLE.rows[0].data.grantText}</span>
+                  <div className="text-[11px] font-mono text-stone-400 uppercase">STARTING WEAPON & ARMOUR</div>
+                  <div className="text-xs text-amber-200 font-semibold flex items-center gap-1.5 mt-0.5">
+                    <Sword className="w-3.5 h-3.5 text-amber-400" />
+                    <span>{selectedClass.gearHighlights.map((g) => g.name).join(' • ')}</span>
                   </div>
                 </div>
 
                 <div className="pt-1">
-                  <div className="text-[11px] font-mono text-stone-400 uppercase">STARTING WEALTH & SUPPLIES</div>
+                  <div className="text-[11px] font-mono text-stone-400 uppercase">STARTING SUPPLIES & WEALTH</div>
                   <div className="text-xs font-mono text-yellow-300 font-bold mt-0.5">
-                    {selectedClass.startingGold + (rolledBoon?.type === 'gold' ? rolledBoon.value : 0)} Gold • {fateTokens} Fate Tokens • 3 Rations • {selectedClass.id === 'rogue' ? (rolledBoon?.type === 'supplies' ? '2 Torches (Boon)' : '0 Torches (Uses Spyglass)') : (rolledBoon?.type === 'supplies' ? '4 Torches' : '2 Torches')}
+                    {selectedClass.startingGold} Gold • {fateTokens} Fate Tokens • 1 Salted Beef Ration • 1 Pitch Torch
+                  </div>
+                </div>
+
+                <div className="pt-1">
+                  <div className="text-[11px] font-mono text-stone-400 uppercase">BONUS TREASURE ITEMS ({rolledTreasures.length})</div>
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {rolledTreasures.map((t, idx) => (
+                      <span key={idx} className="px-1.5 py-0.5 rounded bg-emerald-950/80 border border-emerald-700/70 text-emerald-300 text-[10px] font-mono">
+                        [d20: {t.roll}] {t.item.name}
+                      </span>
+                    ))}
                   </div>
                 </div>
               </div>
@@ -985,18 +1292,18 @@ export const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacte
                 </div>
 
                 <div className="mt-3">
-                  <div className="text-[11px] font-mono text-stone-400 uppercase mb-1">STARTING PACK & GEAR</div>
+                  <div className="text-[11px] font-mono text-stone-400 uppercase mb-1">ALL STARTING GEAR & PACK</div>
                   <div className="flex flex-wrap gap-1 text-[10px] font-mono text-amber-300">
                     {selectedClass.startingEquipment.map((id) => (
                       <span key={id} className="px-1.5 py-0.5 bg-stone-950 rounded border border-stone-800">
                         {ITEMS_DATABASE[id]?.name || id}
                       </span>
                     ))}
-                    {rolledBoon?.itemId && ITEMS_DATABASE[rolledBoon.itemId] && (
-                      <span className="px-1.5 py-0.5 bg-purple-950 text-purple-300 rounded border border-purple-800">
-                        {ITEMS_DATABASE[rolledBoon.itemId].name}
+                    {rolledTreasures.map((t, idx) => (
+                      <span key={`treasure-${idx}`} className="px-1.5 py-0.5 bg-purple-950 text-purple-300 rounded border border-purple-800">
+                        {t.item.name}
                       </span>
-                    )}
+                    ))}
                   </div>
                 </div>
               </div>
@@ -1112,7 +1419,7 @@ export const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacte
               {/* Primary CTA: "Accept calling" */}
               <button
                 id="btn-confirm-destiny"
-                onClick={() => setCurrentStep('BOON_ROLL')}
+                onClick={() => setCurrentStep('TREASURE_ROLL')}
                 className="w-full py-2.5 px-4 bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 hover:from-yellow-300 text-stone-950 font-serif font-black rounded-lg shadow-xl text-xs sm:text-sm cursor-pointer transition-all transform hover:scale-[1.01] active:scale-[0.99] border-2 border-yellow-200 flex items-center justify-center gap-2"
               >
                 <span>Accept calling</span>
@@ -1126,9 +1433,9 @@ export const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacte
             </>
           )}
 
-          {currentStep === 'BOON_ROLL' && (
+          {currentStep === 'TREASURE_ROLL' && (
             <>
-              {/* 1. Sub-bar: Back to calling / Boon status */}
+              {/* 1. Sub-bar: Back to calling / Treasure roll status */}
               <div className="flex items-center justify-between text-xs font-mono px-1">
                 <button
                   onClick={() => setCurrentStep('DESTINY_REVEAL')}
@@ -1136,41 +1443,60 @@ export const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacte
                 >
                   ← Back to Calling
                 </button>
-                <span className="text-amber-300 font-bold truncate max-w-[220px]">
-                  {hasRolledBoon && rolledBoon ? rolledBoon.name : '1d6 Procedural Heirloom'}
+                <span className="text-amber-300 font-bold truncate max-w-[260px]">
+                  {rolledTreasures.length < treasureRollCount
+                    ? `Rolling Item ${rolledTreasures.length + 1} of ${treasureRollCount} (1d20)`
+                    : `${treasureRollCount} of ${treasureRollCount} Items Confirmed`}
                 </span>
               </div>
 
-              {/* 2. Primary CTA: "Roll heirloom" or "Finalize Adventurer" */}
-              {!hasRolledBoon ? (
-                <button
-                  id="btn-roll-heirloom-footer"
-                  onClick={() => setBoonTriggerRoll((n) => n + 1)}
-                  disabled={isBoonRolling}
-                  className="w-full py-2.5 px-4 bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 hover:from-yellow-300 text-stone-950 font-serif font-black rounded-lg shadow-xl text-xs sm:text-sm cursor-pointer transition-all transform hover:scale-[1.01] active:scale-[0.99] border-2 border-yellow-200 flex items-center justify-center gap-2"
-                >
-                  <Dices className={`w-4 h-4 ${isBoonRolling ? 'animate-spin text-stone-950' : ''}`} />
-                  <span>{isBoonRolling ? 'Rolling Heirloom...' : 'Roll heirloom'}</span>
-                </button>
+              {/* 2. Primary CTA: "Roll treasure" or "Finalize Adventurer" */}
+              {!isAllTreasuresRolled ? (
+                <div className="flex items-center gap-2 w-full">
+                  <button
+                    id="btn-roll-treasure-footer"
+                    onClick={() => handleRollTreasureItem()}
+                    disabled={isTreasureRolling}
+                    className="flex-1 py-2.5 px-4 bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 hover:from-yellow-300 text-stone-950 font-serif font-black rounded-lg shadow-xl text-xs sm:text-sm cursor-pointer transition-all transform hover:scale-[1.01] active:scale-[0.99] border-2 border-yellow-200 flex items-center justify-center gap-2"
+                  >
+                    <Dices className={`w-4 h-4 ${isTreasureRolling ? 'animate-spin text-stone-950' : ''}`} />
+                    <span>
+                      {isTreasureRolling
+                        ? 'Rolling 1d20...'
+                        : `Roll Item ${rolledTreasures.length + 1} of ${treasureRollCount} (1d20)`}
+                    </span>
+                  </button>
+                  {remainingTreasureRolls > 1 && (
+                    <button
+                      onClick={handleRollAllRemainingTreasures}
+                      disabled={isTreasureRolling}
+                      className="px-3 py-2 bg-[#22160d] hover:bg-[#2c1d12] border border-amber-900/80 text-amber-200 rounded-lg font-mono text-xs font-bold cursor-pointer shadow shrink-0 flex items-center gap-1"
+                      title="Roll all remaining treasure items instantly"
+                    >
+                      <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                      <span>Roll All ({remainingTreasureRolls})</span>
+                    </button>
+                  )}
+                </div>
               ) : (
                 <div className="flex items-center gap-1.5 w-full">
+                  {fateTokens > 0 && (
+                    <button
+                      id="btn-reroll-treasure-footer"
+                      onClick={() => {
+                        const targetSlot = selectedSlotForReroll !== null ? selectedSlotForReroll : rolledTreasures.length - 1;
+                        handleRerollTreasureSlot(targetSlot);
+                      }}
+                      disabled={isTreasureRolling}
+                      className="px-3 py-2 bg-[#22160d] hover:bg-[#2c1d12] border border-amber-900/80 text-amber-200 rounded-lg font-mono text-xs font-bold cursor-pointer shadow shrink-0 flex items-center gap-1"
+                      title="Spend 1 Fate Token to reroll"
+                    >
+                      <RefreshCw className={`w-3 h-3 text-amber-400 ${isTreasureRolling ? 'animate-spin' : ''}`} />
+                      <span>Reroll Item</span>
+                    </button>
+                  )}
                   <button
-                    id="btn-reroll-heirloom-footer"
-                    onClick={() => {
-                      if (fateTokens > 0) {
-                        setFateTokens((t) => Math.max(0, t - 1));
-                      }
-                      setBoonTriggerRoll((n) => n + 1);
-                    }}
-                    disabled={isBoonRolling}
-                    className="px-3 py-2 bg-[#22160d] hover:bg-[#2c1d12] border border-amber-900/80 text-amber-200 rounded-lg font-mono text-xs font-bold cursor-pointer shadow shrink-0 flex items-center gap-1"
-                    title="Reroll on the heirloom table"
-                  >
-                    <RefreshCw className={`w-3 h-3 text-amber-400 ${isBoonRolling ? 'animate-spin' : ''}`} />
-                    <span>Roll again</span>
-                  </button>
-                  <button
-                    id="btn-confirm-boon"
+                    id="btn-confirm-treasure"
                     onClick={() => setCurrentStep('FINALIZE')}
                     className="flex-1 py-2 px-4 bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 hover:from-yellow-300 text-stone-950 font-serif font-black rounded-lg shadow-lg text-xs sm:text-sm text-center cursor-pointer transition-all border border-yellow-200 flex items-center justify-center gap-2"
                   >
@@ -1180,26 +1506,34 @@ export const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacte
                 </div>
               )}
 
-              {/* 3. Subtext matching Step 1 footer height */}
-              <div className="flex items-center justify-center gap-2 text-xs text-stone-400 font-mono py-0.5">
-                {hasRolledBoon ? (
-                  <span className="text-emerald-400">Heirloom Confirmed • Ready to Embark</span>
-                ) : (
-                  <span>Roll 1d6 on the procedural heirloom table above</span>
-                )}
+              {/* 3. Dice Roll Animation in Footer Control Panel */}
+              <div className="flex items-center justify-center gap-2.5 sm:gap-3 py-0.5 min-h-[36px]">
+                <DieShape
+                  sides={20}
+                  value={d20RollValue !== null ? d20RollValue : 20}
+                  isRolling={isTreasureRolling}
+                  size="sm"
+                />
+                <span className="text-xs font-mono font-bold text-amber-300">
+                  {isTreasureRolling
+                    ? 'Rolling 1d20 on Table...'
+                    : d20RollValue !== null
+                    ? `d20 Rolled: ${d20RollValue}`
+                    : '1d20 Treasure Die Ready'}
+                </span>
               </div>
             </>
           )}
 
           {currentStep === 'FINALIZE' && (
             <>
-              {/* 1. Sub-bar: Back to heirloom / Name summary */}
+              {/* 1. Sub-bar: Back to treasure / Name summary */}
               <div className="flex items-center justify-between text-xs font-mono px-1">
                 <button
-                  onClick={() => setCurrentStep('BOON_ROLL')}
+                  onClick={() => setCurrentStep('TREASURE_ROLL')}
                   className="text-stone-400 hover:text-amber-200 transition-colors flex items-center gap-1 cursor-pointer"
                 >
-                  ← Back to Heirloom
+                  ← Back to Treasure
                 </button>
                 <span className="text-amber-300 font-bold truncate">
                   {characterName || 'Hero'} the {selectedClass.name}
@@ -1221,9 +1555,11 @@ export const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacte
               <div className="flex items-center justify-center gap-3 text-xs font-mono text-amber-300/80 py-0.5">
                 <span>Catacombs of Ur • Floor 1</span>
                 <span>•</span>
-                <span>{selectedClass.startingGold + (rolledBoon?.type === 'gold' ? rolledBoon.value : 0)} Gold</span>
+                <span>{selectedClass.startingGold} Gold</span>
                 <span>•</span>
                 <span>{fateTokens} Fate Tokens</span>
+                <span>•</span>
+                <span>1 Torch • 1 Ration</span>
               </div>
             </>
           )}
