@@ -408,4 +408,16 @@ export function getItemUsageBadge(item: GameItem): { label: string; bg: string }
   return { label: 'Item', bg: 'bg-stone-800 text-stone-300 border-stone-600' };
 }
 
+/**
+ * Checks if an item restores or boosts HP or EP (Energy Points / Mana).
+ */
+export function isHpOrEpBoostingItem(item: GameItem): boolean {
+  if (!item) return false;
+  return Boolean(
+    (typeof item.healHp === 'number' && item.healHp > 0) ||
+    (typeof item.healMana === 'number' && item.healMana > 0) ||
+    (typeof item.healEnergy === 'number' && item.healEnergy > 0)
+  );
+}
+
 

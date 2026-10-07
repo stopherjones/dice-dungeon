@@ -4,12 +4,19 @@
  */
 
 import React, { useState } from 'react';
-import { Store, Coins, X, Heart, Shield, Sword, Package, Sparkles, Wand2 } from 'lucide-react';
+import { Store, Coins, X, Heart, Shield, Sword, Package, Sparkles, Wand2, Utensils, Zap } from 'lucide-react';
 import { GameItem, HeroCharacter } from '../types/game';
 import { generateMerchantStock } from '../utils/generator';
 import { MERCHANT_QUOTES } from '../data/events';
 import { sounds } from '../utils/audio';
-import { addItemToHero, canHeroEquipItem, getItemUsageBadge, getWeaponAcReduction, syncHeroSupplies } from '../utils/inventory';
+import {
+  addItemToHero,
+  canHeroEquipItem,
+  getItemUsageBadge,
+  getWeaponAcReduction,
+  syncHeroSupplies,
+  isHpOrEpBoostingItem,
+} from '../utils/inventory';
 
 interface MerchantModalProps {
   hero: HeroCharacter;
@@ -24,12 +31,16 @@ export const MerchantModal: React.FC<MerchantModalProps> = ({
   onUpdateHero,
   onClose,
 }) => {
-  const [activeTab, setActiveTab] = useState<'buy' | 'sell' | 'service'>('buy');
+  const [activeTab, setActiveTab] = useState<'wares' | 'tavern' | 'sell'>('wares');
   const [stock] = useState<GameItem[]>(() => generateMerchantStock(floorNumber));
   const [merchantQuote] = useState(
     () => MERCHANT_QUOTES[Math.floor(Math.random() * MERCHANT_QUOTES.length)]
   );
   const [feedback, setFeedback] = useState<string | null>(null);
+
+  // Split wares stock: Tavern sells HP/EP items, Wares sells equipment/tools/scrolls
+  const tavernStock = stock.filter(isHpOrEpBoostingItem);
+  const waresStock = stock.filter((item) => !isHpOrEpBoostingItem(item));
 
   // Buy Item
   const handleBuy = (item: GameItem) => {
@@ -74,23 +85,6 @@ export const MerchantModal: React.FC<MerchantModalProps> = ({
 
     syncHeroSupplies(hero);
     setFeedback(`“Pleasure doing business! +${sellPrice} Gold paid for ${invItem.item.name}.”`);
-    onUpdateHero({ ...hero });
-  };
-
-  // Tavern Rest Service
-  const handleMerchantRest = () => {
-    const cost = 12;
-    if (hero.gold < cost) {
-      setFeedback('“Warm broth and fresh bandages cost 12 Gold, friend.”');
-      sounds.playBlock();
-      return;
-    }
-
-    sounds.playHeal();
-    hero.gold -= cost;
-    hero.currentHp = hero.maxHp;
-    hero.currentMana = hero.maxMana;
-    setFeedback('“Enjoy the hearty stew! Your wounds are patched and stamina fully restored.”');
     onUpdateHero({ ...hero });
   };
 
@@ -160,16 +154,32 @@ export const MerchantModal: React.FC<MerchantModalProps> = ({
             <button
               id="btn-merchant-tab-buy"
               onClick={() => {
-                setActiveTab('buy');
+                setActiveTab('wares');
                 sounds.playBlock();
               }}
-              className={`px-3 py-1 rounded text-xs font-serif font-bold transition-all cursor-pointer ${
-                activeTab === 'buy'
+              className={`px-3 py-1 rounded text-xs font-serif font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                activeTab === 'wares'
                   ? 'bg-[#dfb15b] text-[#241a12] shadow'
                   : 'bg-[#291c12] text-stone-300 hover:bg-[#3d2a1b]'
               }`}
             >
-              Buy Wares
+              <Store className="w-3.5 h-3.5" />
+              <span>Wares ({waresStock.length})</span>
+            </button>
+            <button
+              id="btn-merchant-tab-tavern"
+              onClick={() => {
+                setActiveTab('tavern');
+                sounds.playBlock();
+              }}
+              className={`px-3 py-1 rounded text-xs font-serif font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                activeTab === 'tavern'
+                  ? 'bg-[#dfb15b] text-[#241a12] shadow'
+                  : 'bg-[#291c12] text-stone-300 hover:bg-[#3d2a1b]'
+              }`}
+            >
+              <Utensils className="w-3.5 h-3.5" />
+              <span>Tavern ({tavernStock.length})</span>
             </button>
             <button
               id="btn-merchant-tab-sell"
@@ -177,27 +187,14 @@ export const MerchantModal: React.FC<MerchantModalProps> = ({
                 setActiveTab('sell');
                 sounds.playBlock();
               }}
-              className={`px-3 py-1 rounded text-xs font-serif font-bold transition-all cursor-pointer ${
+              className={`px-3 py-1 rounded text-xs font-serif font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
                 activeTab === 'sell'
                   ? 'bg-[#dfb15b] text-[#241a12] shadow'
                   : 'bg-[#291c12] text-stone-300 hover:bg-[#3d2a1b]'
               }`}
             >
-              Sell Loot ({hero.inventory.length})
-            </button>
-            <button
-              id="btn-merchant-tab-service"
-              onClick={() => {
-                setActiveTab('service');
-                sounds.playBlock();
-              }}
-              className={`px-3 py-1 rounded text-xs font-serif font-bold transition-all cursor-pointer ${
-                activeTab === 'service'
-                  ? 'bg-[#dfb15b] text-[#241a12] shadow'
-                  : 'bg-[#291c12] text-stone-300 hover:bg-[#3d2a1b]'
-              }`}
-            >
-              Rest & Heal (12G)
+              <Coins className="w-3.5 h-3.5" />
+              <span>Sell Loot ({hero.inventory.length})</span>
             </button>
           </div>
 
@@ -216,7 +213,8 @@ export const MerchantModal: React.FC<MerchantModalProps> = ({
 
         {/* Content Body */}
         <div className="flex-1 overflow-y-auto pr-1">
-          {activeTab === 'buy' && (
+          {/* TAB 1: GENERAL WARES (Equipment, Weapons, Armor, Tools, Scrolls) */}
+          {activeTab === 'wares' && (
             <div className="space-y-3">
               {/* Featured Backpack Upgrade Card inside Buy Wares */}
               <div className="bg-gradient-to-r from-[#24160d] to-[#1c120a] border-2 border-amber-600/80 p-3 rounded-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-md">
@@ -257,9 +255,9 @@ export const MerchantModal: React.FC<MerchantModalProps> = ({
                 </div>
               </div>
 
-              {/* Standard Item Cards Grid */}
+              {/* Standard Item Cards Grid for General Wares */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                {stock.map((item) => {
+                {waresStock.map((item) => {
                   const canAfford = hero.gold >= item.value;
                   const badge = getItemUsageBadge(item);
                   return (
@@ -285,6 +283,11 @@ export const MerchantModal: React.FC<MerchantModalProps> = ({
                               title="Reduces monster Armor Class on attack rolls"
                             >
                               -{getWeaponAcReduction(item, hero.level)} Enemy AC
+                            </span>
+                          )}
+                          {item.armorBonus && item.armorBonus > 0 && (
+                            <span className="text-[9px] font-mono font-bold px-1.5 py-0.2 rounded bg-stone-900 border border-stone-600 text-amber-300">
+                              +{item.armorBonus} AC
                             </span>
                           )}
                         </div>
@@ -332,6 +335,109 @@ export const MerchantModal: React.FC<MerchantModalProps> = ({
             </div>
           )}
 
+          {/* TAB 2: TAVERN (HP & EP Provisions, Potions, Draughts, Rations) */}
+          {activeTab === 'tavern' && (
+            <div className="space-y-3">
+              {/* Tavern Intro Header Banner */}
+              <div className="bg-gradient-to-r from-[#29170a] via-[#1f130b] to-[#170e08] border-2 border-amber-700/60 p-3 rounded-lg shadow-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 bg-amber-950/90 rounded-lg border border-amber-600 text-amber-300 shrink-0">
+                    <Utensils className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-serif font-bold text-sm text-[#f5e4c6]">
+                        Tavern Hearth & Provisions
+                      </span>
+                      <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-emerald-950/80 border border-emerald-600 text-emerald-300">
+                        HP & EP Supplies
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-stone-300 font-serif leading-tight mt-0.5">
+                      Warm restorative rations, healing elixirs, and energy draughts prepared by Olaf.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Hero current HP / EP indicator */}
+                <div className="flex items-center gap-2.5 font-mono text-xs shrink-0 bg-[#120b06] px-3 py-1.5 rounded border border-[#3b2716]">
+                  <div className="flex items-center gap-1.5 text-emerald-400 font-bold" title="Current Hit Points">
+                    <Heart className="w-3.5 h-3.5 fill-emerald-500/30 text-emerald-400" />
+                    <span>{hero.currentHp}/{hero.maxHp} HP</span>
+                  </div>
+                  <span className="text-stone-600">•</span>
+                  <div className="flex items-center gap-1.5 text-cyan-400 font-bold" title="Current Energy Points">
+                    <Zap className="w-3.5 h-3.5 fill-cyan-500/30 text-cyan-400" />
+                    <span>{hero.currentMana}/{hero.maxMana} EP</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Tavern Stock Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                {tavernStock.map((item) => {
+                  const canAfford = hero.gold >= item.value;
+                  const badge = getItemUsageBadge(item);
+                  return (
+                    <div
+                      key={item.id}
+                      className="bg-[#1b130c] border border-amber-900/50 p-2.5 rounded-lg flex flex-col justify-between hover:border-amber-700/70 transition-colors"
+                    >
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="font-serif font-bold text-xs text-amber-200">{item.name}</span>
+                          <span className="text-xs font-mono font-bold text-yellow-400">{item.value} G</span>
+                        </div>
+
+                        {/* Restorative power badges: HP / EP */}
+                        <div className="flex flex-wrap items-center gap-1 mb-1.5">
+                          {item.healHp && (
+                            <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-emerald-950/90 border border-emerald-600 text-emerald-300 flex items-center gap-1">
+                              <Heart className="w-2.5 h-2.5 fill-emerald-400 text-emerald-400" />
+                              +{item.healHp} HP
+                            </span>
+                          )}
+                          {(item.healMana || item.healEnergy) && (
+                            <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-cyan-950/90 border border-cyan-600 text-cyan-300 flex items-center gap-1">
+                              <Zap className="w-2.5 h-2.5 fill-cyan-400 text-cyan-400" />
+                              +{item.healMana || item.healEnergy} EP
+                            </span>
+                          )}
+                          <span className={`text-[9px] font-mono font-bold px-1.5 py-0.2 rounded border ${badge.bg}`}>
+                            {badge.label}
+                          </span>
+                          {item.usableInCombat ? (
+                            <span className="text-[8px] font-mono px-1 py-0.2 rounded bg-stone-900 border border-stone-700 text-stone-400">
+                              Combat & Camp
+                            </span>
+                          ) : (
+                            <span className="text-[8px] font-mono px-1 py-0.2 rounded bg-amber-950/60 border border-amber-800 text-amber-300">
+                              Camp Only
+                            </span>
+                          )}
+                        </div>
+
+                        <p className="text-[11px] text-stone-300 font-serif leading-tight mb-2">
+                          {item.description}
+                        </p>
+                      </div>
+
+                      <button
+                        id={`btn-buy-${item.id}`}
+                        disabled={!canAfford}
+                        onClick={() => handleBuy(item)}
+                        className="w-full py-1.5 bg-gradient-to-b from-[#4a3420] to-[#342416] hover:from-[#5d4128] hover:to-[#452f1d] text-amber-100 rounded text-xs font-serif font-bold border border-[#7a5530] shadow transition-colors disabled:opacity-40 cursor-pointer"
+                      >
+                        {canAfford ? `Buy (${item.value} Gold)` : 'Not enough Gold'}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* TAB 3: SELL LOOT */}
           {activeTab === 'sell' && (
             <div className="space-y-2">
               {hero.inventory.length === 0 ? (
@@ -374,25 +480,6 @@ export const MerchantModal: React.FC<MerchantModalProps> = ({
                   })}
                 </div>
               )}
-            </div>
-          )}
-
-          {activeTab === 'service' && (
-            <div className="bg-[#1b130c] border border-[#4d3623] p-4 rounded-lg text-center space-y-3 max-w-md mx-auto">
-              <Heart className="w-8 h-8 text-red-400 mx-auto" />
-              <h3 className="text-base font-serif font-bold text-[#f5e4c6]">Tavern Hearth & Bandages</h3>
-              <p className="text-xs text-stone-300 font-serif leading-relaxed">
-                Olaf brews a hot herbal tonic and expertly dresses all your wounds. Instantly restores 100% of your Hit Points and Mana.
-              </p>
-              <div className="font-mono text-sm text-yellow-300 font-bold">Cost: 12 Gold</div>
-              <button
-                id="btn-buy-tavern-rest"
-                disabled={hero.gold < 12}
-                onClick={handleMerchantRest}
-                className="px-6 py-2 bg-gradient-to-b from-[#8f6437] to-[#593b1d] hover:from-[#a67440] hover:to-[#6d4924] text-amber-100 font-serif font-bold text-xs rounded border border-[#dfb15b] shadow disabled:opacity-40 cursor-pointer"
-              >
-                Pay 12 Gold & Rest
-              </button>
             </div>
           )}
         </div>
