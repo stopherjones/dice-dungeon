@@ -31,6 +31,8 @@ import { sounds } from '../utils/audio';
 import {
   canHeroEquipItem,
   dropItemFromHero,
+  getItemCategoryLabel,
+  getItemUsageBadge,
   getWeaponAcReduction,
   syncHeroSupplies,
 } from '../utils/inventory';
@@ -159,50 +161,6 @@ export const BackpackPanel: React.FC<BackpackPanelProps> = ({
     dropItemFromHero(hero, invIdx);
     setInspectTarget(null);
     onUpdateHero({ ...hero });
-  };
-
-  const getItemCategoryLabel = (item: GameItem) => {
-    if (item.id === 'dungeon_ration') return 'Ration / Food';
-    if (item.id === 'iron_lockpick') return 'Lockpick Tool';
-    if (item.id === 'dungeon_torch') return 'Torch Tool';
-    if (item.id === 'brass_spyglass') return 'Scouting Scope';
-    if (item.id === 'dice_of_fate') return 'Relic / Fate';
-    if (item.type === 'potion') return 'Potion / Draught';
-    if (item.type === 'scroll') return 'Spell Scroll';
-    if (item.type === 'weapon') return 'Weapon';
-    if (item.type === 'shield') return 'Shield / Offhand';
-    if (item.type === 'armor') return 'Armor';
-    if (item.type === 'helmet') return 'Headgear';
-    if (item.type === 'boots') return 'Footwear';
-    if (item.type === 'ring') return 'Ring';
-    if (item.type === 'amulet') return 'Amulet';
-    if (item.type === 'treasure') return 'Treasure / Gem';
-    return item.type;
-  };
-
-  const getItemUsageBadge = (item: GameItem) => {
-    if (
-      item.type === 'potion' ||
-      item.type === 'scroll' ||
-      item.id === 'dungeon_torch' ||
-      item.id === 'dungeon_ration' ||
-      item.id === 'miner_pickaxe'
-    ) {
-      return { label: 'Single-use', bg: 'bg-amber-950/80 text-amber-300 border-amber-600/70' };
-    }
-    if (item.id === 'dwarven_sledgehammer') {
-      return { label: '2 Uses', bg: 'bg-orange-950/80 text-orange-300 border-orange-600/70' };
-    }
-    if (item.id === 'iron_lockpick' || item.id === 'brass_spyglass' || item.id === 'ethereal_ring') {
-      return { label: 'Reusable Tool', bg: 'bg-cyan-950/80 text-cyan-300 border-cyan-500/70' };
-    }
-    if (['weapon', 'shield', 'armor', 'helmet', 'boots', 'ring', 'amulet'].includes(item.type)) {
-      return { label: 'Equipment', bg: 'bg-stone-800 text-stone-300 border-stone-600' };
-    }
-    if (item.type === 'treasure') {
-      return { label: 'Treasure', bg: 'bg-yellow-950/80 text-yellow-300 border-yellow-500/70' };
-    }
-    return { label: 'Item', bg: 'bg-stone-800 text-stone-300 border-stone-600' };
   };
 
   const getItemIcon = (item: GameItem) => {

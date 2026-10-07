@@ -335,3 +335,77 @@ export function getWeaponAcReduction(item?: GameItem, heroLevel = 1): number {
   return (item.enemyAcReduction || 0) + (item.enemyAcReductionPerLevel || 0) * heroLevel;
 }
 
+/**
+ * Descriptive label for item categories.
+ */
+export function getItemCategoryLabel(item: GameItem): string {
+  if (item.id === 'dungeon_ration') return 'Ration / Food';
+  if (item.id === 'iron_lockpick') return 'Lockpick Tool';
+  if (item.id === 'dungeon_torch') return 'Torch Tool';
+  if (item.id === 'brass_spyglass') return 'Scouting Scope';
+  if (item.id === 'dice_of_fate') return 'Relic / Fate';
+  if (item.type === 'potion') return 'Potion / Draught';
+  if (item.type === 'scroll') return 'Spell Scroll';
+  if (item.type === 'weapon') return 'Weapon';
+  if (item.type === 'shield') return 'Shield / Offhand';
+  if (item.type === 'armor') return 'Armour';
+  if (item.type === 'helmet') return 'Helmet';
+  if (item.type === 'boots') return 'Footwear';
+  if (item.type === 'ring') return 'Ring';
+  if (item.type === 'amulet') return 'Amulet';
+  if (item.type === 'treasure') return 'Treasure / Gem';
+  if (item.type === 'tool') return 'Tool';
+  return item.type;
+}
+
+/**
+ * Returns badge label and styling for an item. Tags specific equipment types (Weapon, Shield, Armour, Helmet, Footwear, Ring, Amulet)
+ * rather than a generic 'Equipment' tag.
+ */
+export function getItemUsageBadge(item: GameItem): { label: string; bg: string } {
+  if (
+    item.type === 'potion' ||
+    item.type === 'scroll' ||
+    item.id === 'dungeon_torch' ||
+    item.id === 'dungeon_ration' ||
+    item.id === 'miner_pickaxe'
+  ) {
+    return { label: 'Single-use', bg: 'bg-amber-950/80 text-amber-300 border-amber-600/70' };
+  }
+  if (item.id === 'dwarven_sledgehammer') {
+    return { label: '2 Uses', bg: 'bg-orange-950/80 text-orange-300 border-orange-600/70' };
+  }
+  if (item.id === 'iron_lockpick' || item.id === 'brass_spyglass') {
+    return { label: 'Reusable Tool', bg: 'bg-cyan-950/80 text-cyan-300 border-cyan-500/70' };
+  }
+  if (item.type === 'weapon') {
+    return { label: 'Weapon', bg: 'bg-stone-800 text-stone-300 border-stone-600' };
+  }
+  if (item.type === 'shield') {
+    return { label: 'Shield', bg: 'bg-stone-800 text-stone-300 border-stone-600' };
+  }
+  if (item.type === 'armor') {
+    return { label: 'Armour', bg: 'bg-stone-800 text-stone-300 border-stone-600' };
+  }
+  if (item.type === 'helmet') {
+    return { label: 'Helmet', bg: 'bg-stone-800 text-stone-300 border-stone-600' };
+  }
+  if (item.type === 'boots') {
+    return { label: 'Footwear', bg: 'bg-stone-800 text-stone-300 border-stone-600' };
+  }
+  if (item.type === 'ring') {
+    return { label: 'Ring', bg: 'bg-stone-800 text-stone-300 border-stone-600' };
+  }
+  if (item.type === 'amulet') {
+    return { label: 'Amulet', bg: 'bg-stone-800 text-stone-300 border-stone-600' };
+  }
+  if (item.type === 'treasure') {
+    return { label: 'Treasure', bg: 'bg-yellow-950/80 text-yellow-300 border-yellow-500/70' };
+  }
+  if (item.type === 'tool') {
+    return { label: 'Tool', bg: 'bg-cyan-950/80 text-cyan-300 border-cyan-500/70' };
+  }
+  return { label: 'Item', bg: 'bg-stone-800 text-stone-300 border-stone-600' };
+}
+
+

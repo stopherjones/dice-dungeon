@@ -38,7 +38,7 @@ import {
 import { CharacterStats, GameItem, HeroCharacter, HeroClassId, StatType } from '../types/game';
 import { HERO_CLASSES } from '../data/classes';
 import { ITEMS_DATABASE } from '../data/items';
-import { canHeroEquipItem, syncHeroSupplies } from '../utils/inventory';
+import { canHeroEquipItem, getItemCategoryLabel, syncHeroSupplies } from '../utils/inventory';
 import { getHeroSkillsForLevel } from '../utils/skills';
 import { LOOT_TABLE_CHEST, LootRewardResult, TableRow, lookupTableRow } from '../data/tables';
 import { DieShape } from './DieShape';
@@ -1040,8 +1040,8 @@ export const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacte
                       </div>
 
                       <div className="flex items-center justify-between pt-1 border-t border-stone-900 text-xs">
-                        <span className="text-[10px] uppercase font-mono px-1.5 py-0.5 rounded bg-stone-900 border border-stone-700 text-stone-300">
-                          {rolled.item.type}
+                        <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-stone-900 border border-stone-700 text-stone-300">
+                          {getItemCategoryLabel(rolled.item)}
                         </span>
                         {fateTokens > 0 && (
                           <button

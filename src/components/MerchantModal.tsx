@@ -9,7 +9,7 @@ import { GameItem, HeroCharacter } from '../types/game';
 import { generateMerchantStock } from '../utils/generator';
 import { MERCHANT_QUOTES } from '../data/events';
 import { sounds } from '../utils/audio';
-import { addItemToHero, canHeroEquipItem, getWeaponAcReduction, syncHeroSupplies } from '../utils/inventory';
+import { addItemToHero, canHeroEquipItem, getItemUsageBadge, getWeaponAcReduction, syncHeroSupplies } from '../utils/inventory';
 
 interface MerchantModalProps {
   hero: HeroCharacter;
@@ -121,31 +121,6 @@ export const MerchantModal: React.FC<MerchantModalProps> = ({
     hero.maxInventorySlots += 5;
     setFeedback(`“Backpack expanded! Capacity increased to ${hero.maxInventorySlots} Slots (+5 Slots).”`);
     onUpdateHero({ ...hero });
-  };
-
-  const getItemUsageBadge = (item: GameItem) => {
-    if (
-      item.type === 'potion' ||
-      item.type === 'scroll' ||
-      item.id === 'dungeon_torch' ||
-      item.id === 'dungeon_ration' ||
-      item.id === 'miner_pickaxe'
-    ) {
-      return { label: 'Single-use', bg: 'bg-amber-950/80 text-amber-300 border-amber-600/70' };
-    }
-    if (item.id === 'dwarven_sledgehammer') {
-      return { label: '2 Uses', bg: 'bg-orange-950/80 text-orange-300 border-orange-600/70' };
-    }
-    if (item.id === 'iron_lockpick' || item.id === 'brass_spyglass' || item.id === 'ethereal_ring') {
-      return { label: 'Reusable Tool', bg: 'bg-cyan-950/80 text-cyan-300 border-cyan-500/70' };
-    }
-    if (['weapon', 'shield', 'armor', 'helmet', 'boots', 'ring', 'amulet'].includes(item.type)) {
-      return { label: 'Equipment', bg: 'bg-stone-800 text-stone-300 border-stone-600' };
-    }
-    if (item.type === 'treasure') {
-      return { label: 'Treasure', bg: 'bg-yellow-950/80 text-yellow-300 border-yellow-500/70' };
-    }
-    return { label: 'Item', bg: 'bg-stone-800 text-stone-300 border-stone-600' };
   };
 
   const upgradeCost = getBackpackUpgradeCost();
