@@ -37,7 +37,7 @@ import {
   StatusEffect,
 } from '../types/game';
 import { ITEMS_DATABASE } from '../data/items';
-import { getWeaponAcReduction } from '../utils/inventory';
+import { getWeaponAcReduction, canHeroUseItem } from '../utils/inventory';
 import { DiceVisualizer } from './DiceVisualizer';
 import { rollDice, getStatModifier, parseAndRollFormula, RollResult } from '../utils/dice';
 import { sounds } from '../utils/audio';
@@ -876,6 +876,10 @@ export const CombatView: React.FC<CombatViewProps> = ({
   const handleUseCombatItem = (invIdx: number) => {
     const inv = hero.inventory[invIdx];
     if (!inv || !inv.item.usableInCombat) return;
+    if (!canHeroUseItem(hero, inv.item).canUse) {
+      sounds.playBlock();
+      return;
+    }
     const item = inv.item;
 
     // A. OFFENSIVE SPELL SCROLLS (e.g. Scroll of Fireball)
@@ -1696,10 +1700,10 @@ export const CombatView: React.FC<CombatViewProps> = ({
     });
   };
 
-  // Combat consumables in inventory
+  // Combat consumables in inventory (usable in combat and meeting class/stat requirements)
   const combatConsumables = hero.inventory
     .map((inv, idx) => ({ inv, idx }))
-    .filter(({ inv }) => inv.item.usableInCombat);
+    .filter(({ inv }) => inv.item.usableInCombat && canHeroUseItem(hero, inv.item).canUse);
 
   return (
     <div className="max-w-5xl mx-auto w-full space-y-4 font-sans text-amber-100 animate-fadeIn">

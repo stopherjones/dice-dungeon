@@ -328,6 +328,22 @@ export function canHeroEquipItem(
 }
 
 /**
+ * Checks if a hero can use an item or tool based on class, race, and stat requirements.
+ */
+export function canHeroUseItem(
+  hero: HeroCharacter,
+  item: GameItem
+): { canUse: boolean; reasons: string[]; requirementBadges: { label: string; met: boolean }[] } {
+  if (!item) return { canUse: true, reasons: [], requirementBadges: [] };
+  const equipCheck = canHeroEquipItem(hero, item);
+  return {
+    canUse: equipCheck.canEquip,
+    reasons: equipCheck.reasons,
+    requirementBadges: equipCheck.requirementBadges,
+  };
+}
+
+/**
  * Computes enemy AC reduction for a weapon, factoring in flat reduction and per-level scaling.
  */
 export function getWeaponAcReduction(item?: GameItem, heroLevel = 1): number {

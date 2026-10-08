@@ -741,10 +741,13 @@ export const ITEMS_DATABASE: Record<string, GameItem> = {
   iron_lockpick: {
     id: 'iron_lockpick',
     name: "Thieves' Lockpick Kit",
-    description: 'Reusable masterwork tool. Grants +3 bonus on lockpicking checks. Does not get consumed on use.',
+    description: 'Reusable masterwork tool. Grants +3 bonus on lockpicking checks. Requires Rogue, Jester, or Hero class.',
     type: 'tool',
     rarity: 'uncommon',
     value: 25,
+    requirements: {
+      allowedClasses: ['rogue', 'hero', 'jester'],
+    },
     icon: 'Key',
   },
   dungeon_torch: {
@@ -761,11 +764,14 @@ export const ITEMS_DATABASE: Record<string, GameItem> = {
   brass_spyglass: {
     id: 'brass_spyglass',
     name: "Burglar's Spyglass",
-    description: 'Reusable tool. A collapsible brass scope that lets you peek and reveal any unobstructed adjacent room tile without consuming torches.',
+    description: 'Reusable masterwork tool. A collapsible brass scope that lets you peek and reveal any unobstructed adjacent room tile without consuming torches. Requires Rogue, Jester, or Hero class.',
     type: 'tool',
     rarity: 'uncommon',
     value: 28,
     specialEffect: 'PEEK_ALL_ADJACENT',
+    requirements: {
+      allowedClasses: ['rogue', 'hero', 'jester'],
+    },
     icon: 'Compass',
     usableOutOfCombat: true,
   },

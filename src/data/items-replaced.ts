@@ -741,10 +741,13 @@ export const ITEMS_DATABASE: Record<string, GameItem> = {
   iron_lockpick: {
     id: 'iron_lockpick',
     name: "Thieves' Lockpick Kit",
-    description: 'Reusable masterwork tool. Grants +3 bonus on lockpicking checks. Does not get consumed on use.',
+    description: 'Reusable masterwork tool. Grants +3 bonus on lockpicking checks. Requires Rogue, Jester, or Hero class.',
     type: 'tool',
     rarity: 'uncommon',
     value: 25,
+    requirements: {
+      allowedClasses: ['rogue', 'hero', 'jester'],
+    },
     icon: 'Key',
   },
   dungeon_torch: {

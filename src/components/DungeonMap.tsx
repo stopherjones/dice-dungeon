@@ -30,6 +30,7 @@ import {
 } from 'lucide-react';
 import { DungeonFloor, DungeonRoom, GameItem, HeroCharacter, RoomType } from '../types/game';
 import { sounds } from '../utils/audio';
+import { canHeroUseItem } from '../utils/inventory';
 import {
   areCoordinatesAdjacent,
   hasWallBetween,
@@ -117,16 +118,26 @@ export const DungeonMap: React.FC<DungeonMapProps> = ({
   const merchants = allRooms.filter((r) => r.type === 'MERCHANT');
   const secrets = allRooms.filter((r) => r.type === 'SECRET');
 
-  // Check inventory for special wall tools
+  // Check inventory for special wall tools (verifying hero meets class and stat requirements)
   const hasBreachingTool = hero.inventory.find(
-    (i) => i.item.specialEffect === 'SMASH_WALL' && (i.chargesLeft ?? i.item.charges ?? 1) > 0
+    (i) =>
+      i.item.specialEffect === 'SMASH_WALL' &&
+      (i.chargesLeft ?? i.item.charges ?? 1) > 0 &&
+      canHeroUseItem(hero, i.item).canUse
   );
-  const hasPhasingPotion = hero.inventory.find((i) => i.item.id === 'potion_of_phasing' && i.quantity > 0);
+  const hasPhasingPotion = hero.inventory.find(
+    (i) => i.item.id === 'potion_of_phasing' && i.quantity > 0 && canHeroUseItem(hero, i.item).canUse
+  );
   const isWearingEtherealRing = hero.equipment.ring?.id === 'ethereal_ring';
   const hasClairvoyanceScroll = hero.inventory.find(
-    (i) => i.item.id === 'scroll_of_clairvoyance' && i.quantity > 0
+    (i) =>
+      i.item.id === 'scroll_of_clairvoyance' &&
+      i.quantity > 0 &&
+      canHeroUseItem(hero, i.item).canUse
   );
-  const hasSpyglass = hero.inventory.find((i) => i.item.id === 'brass_spyglass');
+  const hasSpyglass = hero.inventory.find(
+    (i) => i.item.id === 'brass_spyglass' && canHeroUseItem(hero, i.item).canUse
+  );
 
   // Build 4x4 matrix
   const gridMatrix: (DungeonRoom | null)[][] = [];
@@ -244,6 +255,13 @@ export const DungeonMap: React.FC<DungeonMapProps> = ({
 
     // 3. SPYGLASS MODE (peeks adjacent unobstructed room without consuming torch)
     if (currentMode === 'SPYGLASS') {
+      if (!hasSpyglass) {
+        sounds.playBlock();
+        setAlertMessage("You do not meet the class requirements to use the Burglar's Spyglass (Requires Rogue, Jester, or Hero).");
+        handleClearMode();
+        return;
+      }
+
       const isAdjacent = areCoordinatesAdjacent(
         { x: currentRoom.gridX, y: currentRoom.gridY },
         { x: targetRoom.gridX, y: targetRoom.gridY }

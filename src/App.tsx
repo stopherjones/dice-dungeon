@@ -62,6 +62,7 @@ import {
   consumeHeroRation,
   consumeHeroTorch,
   syncHeroSupplies,
+  canHeroUseItem,
 } from './utils/inventory';
 import { getHeroSkillsForLevel } from './utils/skills';
 
@@ -425,6 +426,12 @@ export default function App() {
   // Use Burglar's Spyglass to peek an adjacent room without consuming a torch
   const handleUseSpyglass = (targetRoomId: string) => {
     if (!gameState.hero) return;
+    const spyglassItem = gameState.hero.inventory.find((i) => i.item.id === 'brass_spyglass');
+    if (!spyglassItem || !canHeroUseItem(gameState.hero, spyglassItem.item).canUse) {
+      sounds.playBlock();
+      return;
+    }
+
     const currentFloorObj = gameState.floors[gameState.currentFloor];
     if (!currentFloorObj || !currentFloorObj.rooms[targetRoomId]) return;
 
@@ -453,6 +460,33 @@ export default function App() {
   const handleActivateMapAction = (
     action: 'TORCH' | 'CLAIRVOYANCE' | 'SPYGLASS' | 'SMASH_WALL' | 'PHASE_WALL'
   ) => {
+    if (!gameState.hero) return;
+
+    if (action === 'SPYGLASS') {
+      const spyglassInv = gameState.hero.inventory.find((i) => i.item.id === 'brass_spyglass');
+      if (!spyglassInv || !canHeroUseItem(gameState.hero, spyglassInv.item).canUse) {
+        sounds.playBlock();
+        return;
+      }
+    } else if (action === 'SMASH_WALL') {
+      const breachInv = gameState.hero.inventory.find(
+        (i) => i.item.specialEffect === 'SMASH_WALL' && (i.chargesLeft ?? i.item.charges ?? 1) > 0
+      );
+      if (!breachInv || !canHeroUseItem(gameState.hero, breachInv.item).canUse) {
+        sounds.playBlock();
+        return;
+      }
+    } else if (action === 'PHASE_WALL') {
+      const isWearingRing = gameState.hero.equipment.ring?.id === 'ethereal_ring';
+      const phaseInv = gameState.hero.inventory.find(
+        (i) => i.item.specialEffect === 'PHASE_WALL' && i.quantity > 0
+      );
+      if (!isWearingRing && (!phaseInv || !canHeroUseItem(gameState.hero, phaseInv.item).canUse)) {
+        sounds.playBlock();
+        return;
+      }
+    }
+
     setShowInventory(false);
     setShowRoomModal(false);
     setActiveMapAction(action);
@@ -462,6 +496,10 @@ export default function App() {
   // Smash an interior stone wall with sledgehammer or pickaxe
   const handleSmashWall = (wallId: string, item: GameItem) => {
     if (!gameState.hero) return;
+    if (!canHeroUseItem(gameState.hero, item).canUse) {
+      sounds.playBlock();
+      return;
+    }
     const hero = { ...gameState.hero };
     const floorObj = gameState.floors[gameState.currentFloor];
     if (!floorObj) return;

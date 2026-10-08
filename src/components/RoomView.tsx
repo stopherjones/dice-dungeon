@@ -31,7 +31,7 @@ import { LootRollerModal } from './LootRollerModal';
 import { ActionChallengeModal, ActionChallengeConfig } from './ActionChallengeModal';
 import { rollDice, getStatModifier, RollResult } from '../utils/dice';
 import { sounds } from '../utils/audio';
-import { addItemToHero, removeItemFromHero, syncHeroSupplies } from '../utils/inventory';
+import { addItemToHero, removeItemFromHero, syncHeroSupplies, canHeroUseItem } from '../utils/inventory';
 
 export interface RoomPrimaryAction {
   label: string;
@@ -113,12 +113,27 @@ export const RoomView: React.FC<RoomViewProps> = ({
     currentRoll,
   ]);
 
-  // Check inventory for wall tools
+  // Check inventory for wall tools (verifying hero meets class and stat requirements)
   const hasBreachingTool = hero.inventory.find(
-    (i) => i.item.specialEffect === 'SMASH_WALL' && (i.chargesLeft ?? i.item.charges ?? 1) > 0
+    (i) =>
+      i.item.specialEffect === 'SMASH_WALL' &&
+      (i.chargesLeft ?? i.item.charges ?? 1) > 0 &&
+      canHeroUseItem(hero, i.item).canUse
   );
-  const hasPhasingPotion = hero.inventory.find((i) => i.item.id === 'potion_of_phasing' && i.quantity > 0);
+  const hasPhasingPotion = hero.inventory.find(
+    (i) => i.item.id === 'potion_of_phasing' && i.quantity > 0 && canHeroUseItem(hero, i.item).canUse
+  );
   const isWearingEtherealRing = hero.equipment.ring?.id === 'ethereal_ring';
+
+  // Usable lockpicks check (must meet class requirements e.g. Rogue/Jester/Hero)
+  const usablePicks = hero.inventory.find(
+    (i) => i.item.id === 'iron_lockpick' && canHeroUseItem(hero, i.item).canUse
+  );
+  const unusablePicks = hero.inventory.find(
+    (i) => i.item.id === 'iron_lockpick' && !canHeroUseItem(hero, i.item).canUse
+  );
+  const hasPicks = Boolean(usablePicks);
+  const canPickLock = hasPicks;
 
   const heroStats = { ...hero.stats };
   (Object.values(hero.equipment) as (GameItem | undefined)[]).forEach((item) => {
@@ -130,15 +145,20 @@ export const RoomView: React.FC<RoomViewProps> = ({
     if (item.statBonuses.LCK) heroStats.LCK += item.statBonuses.LCK;
   });
 
-  // Chest: Pick Lock (DEX) via Focused Modal
+  // Chest: Pick Lock (DEX) via Focused Modal (Requires usable lockpick kit)
   const handlePickChestLock = () => {
     if (!room.chest || room.chest.isOpened || room.chest.isFailed || room.chest.isJammed) return;
-
-    let bonus = getStatModifier(heroStats.DEX);
-    const hasPicks = hero.lockpicks > 0;
-    if (hasPicks) {
-      bonus += 3;
+    if (!canPickLock) {
+      sounds.playBlock();
+      setEventMessage(
+        unusablePicks
+          ? `✖ Cannot use Thieves' Lockpick Kit: Requires Rogue, Jester, or Hero class. Bash the chest open with STR instead!`
+          : `✖ You need a Thieves' Lockpick Kit to pick locks. Bash the chest open with STR instead!`
+      );
+      return;
     }
+
+    const bonus = getStatModifier(heroStats.DEX) + 3;
 
     setChallengeConfig({
       type: 'CHEST_PICK',
@@ -149,9 +169,7 @@ export const RoomView: React.FC<RoomViewProps> = ({
       stat: 'DEX',
       dc: room.chest.lockDifficulty,
       bonus,
-      bonusBreakdown: hasPicks
-        ? `DEX Mod (${getStatModifier(heroStats.DEX)}) + Reusable Lockpick Kit (+3)`
-        : `DEX Mod (${getStatModifier(heroStats.DEX)})`,
+      bonusBreakdown: `DEX Mod (${getStatModifier(heroStats.DEX)}) + Reusable Lockpick Kit (+3)`,
       successOutcomeTitle: 'Tumbler Unlocked!',
       successOutcomeDesc: `With a satisfying mechanical click, the iron chest springs open! Ready to collect your spoils.`,
       failureOutcomeTitle: 'Lockpick Slipped',
@@ -384,7 +402,9 @@ export const RoomView: React.FC<RoomViewProps> = ({
     ? { label: floor.floorNumber === 3 ? 'Claim Victory' : `Descend to Floor ${floor.floorNumber + 1}`, onClick: onDescendFloor }
     : room.chest && !room.chest.isOpened && !room.chest.isFailed && !room.chest.isJammed
     ? room.chest.isLocked
-      ? { label: 'Pick Chest Lock', onClick: handlePickChestLock }
+      ? canPickLock
+        ? { label: 'Pick Chest Lock (DEX)', onClick: handlePickChestLock }
+        : { label: 'Bash Open Chest (STR)', onClick: handleForceChest }
       : { label: 'Open Chest for Treasure', onClick: handleOpenUnlockedChest }
     : room.type === 'MERCHANT'
     ? { label: 'Trade with Olaf', onClick: onOpenMerchant }
@@ -668,14 +688,29 @@ export const RoomView: React.FC<RoomViewProps> = ({
                       <div className="grid grid-cols-2 gap-2">
                         <button
                           id="btn-pick-lock"
-                          disabled={isRolling}
+                          disabled={!canPickLock || isRolling}
                           onClick={handlePickChestLock}
-                          className="p-2.5 bg-[#382617] hover:bg-[#4d3521] text-amber-200 border border-[#6b4c2b] rounded text-xs font-serif flex flex-col items-center gap-1 transition-colors cursor-pointer"
+                          className={`p-2.5 rounded text-xs font-serif flex flex-col items-center gap-1 transition-colors ${
+                            canPickLock && !isRolling
+                              ? 'bg-[#382617] hover:bg-[#4d3521] text-amber-200 border border-[#6b4c2b] cursor-pointer'
+                              : 'bg-stone-900 border border-stone-800 text-stone-500 opacity-60 cursor-not-allowed'
+                          }`}
+                          title={
+                            canPickLock
+                              ? 'Pick lock with masterwork tools (+3 bonus)'
+                              : unusablePicks
+                              ? "Cannot use lockpicks: Requires Rogue, Jester, or Hero class"
+                              : "Requires Thieves' Lockpick Kit"
+                          }
                         >
-                          <Key className="w-4 h-4 text-cyan-400" />
+                          <Key className={`w-4 h-4 ${canPickLock ? 'text-cyan-400' : 'text-stone-600'}`} />
                           <span className="font-bold">Pick Lock (DEX)</span>
-                          <span className="text-[10px] text-stone-400 font-mono">
-                            {hero.lockpicks > 0 ? '+3 Lockpick' : 'Standard check'}
+                          <span className="text-[10px] font-mono">
+                            {canPickLock
+                              ? '+3 Lockpick'
+                              : unusablePicks
+                              ? 'Class Restricted'
+                              : 'Requires Lockpicks'}
                           </span>
                         </button>
 

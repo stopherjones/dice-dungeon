@@ -30,6 +30,7 @@ import { GameItem, HeroCharacter, StatType } from '../types/game';
 import { sounds } from '../utils/audio';
 import {
   canHeroEquipItem,
+  canHeroUseItem,
   dropItemFromHero,
   getItemCategoryLabel,
   getItemUsageBadge,
@@ -137,6 +138,10 @@ export const BackpackPanel: React.FC<BackpackPanelProps> = ({
   const handleUseItem = (invIdx: number) => {
     const inv = hero.inventory[invIdx];
     if (!inv || !inv.item.usableOutOfCombat) return;
+    if (!canHeroUseItem(hero, inv.item).canUse) {
+      sounds.playBlock();
+      return;
+    }
     const item = inv.item;
 
     if (item.healHp) {
@@ -486,8 +491,9 @@ export const BackpackPanel: React.FC<BackpackPanelProps> = ({
                       <span className={`text-[8px] font-mono font-bold px-1 py-0.2 rounded border ${badge.bg}`}>
                         {badge.label}
                       </span>
-                      {['weapon', 'shield', 'armor', 'helmet', 'boots', 'ring', 'amulet'].includes(inv.item.type) &&
-                        !canHeroEquipItem(hero, inv.item).canEquip && (
+                      {inv.item.requirements &&
+                        Object.keys(inv.item.requirements).length > 0 &&
+                        !canHeroUseItem(hero, inv.item).canUse && (
                           <span className="text-[8px] font-mono font-bold px-1 py-0.2 rounded bg-red-950/90 text-red-300 border border-red-800">
                             Reqs Unmet
                           </span>
@@ -576,7 +582,7 @@ export const BackpackPanel: React.FC<BackpackPanelProps> = ({
 
                 const targetEquipCheck = targetSlotKey
                   ? canHeroEquipItem(hero, inspectTarget.item, targetSlotKey)
-                  : null;
+                  : canHeroUseItem(hero, inspectTarget.item);
 
                 return (
                   <>
@@ -701,17 +707,33 @@ export const BackpackPanel: React.FC<BackpackPanelProps> = ({
                     })()}
 
                     {/* Consumable use button */}
-                    {inspectTarget.item.usableOutOfCombat && (
-                      <button
-                        onClick={() => handleUseItem(inspectTarget.index)}
-                        className="px-3 py-1.5 bg-gradient-to-r from-emerald-800 to-emerald-900 hover:from-emerald-700 hover:to-emerald-800 text-emerald-100 font-serif font-bold text-xs rounded border border-emerald-600 shadow flex items-center gap-1.5 cursor-pointer"
-                      >
-                        <Heart className="w-3.5 h-3.5 text-emerald-400" />
-                        <span>Use / Drink</span>
-                      </button>
-                    )}
+                    {inspectTarget.item.usableOutOfCombat && (() => {
+                      const useCheck = canHeroUseItem(hero, inspectTarget.item);
+                      if (!useCheck.canUse) {
+                        return (
+                          <div className="flex flex-col gap-1">
+                            <button
+                              disabled
+                              className="px-3 py-1.5 bg-stone-900 border border-red-800 text-red-400 font-serif font-bold text-xs rounded opacity-75 cursor-not-allowed flex items-center gap-1.5"
+                            >
+                              <AlertCircle className="w-3.5 h-3.5 text-red-400" />
+                              <span>Cannot Use ({useCheck.reasons[0] || 'Requirements Not Met'})</span>
+                            </button>
+                          </div>
+                        );
+                      }
+                      return (
+                        <button
+                          onClick={() => handleUseItem(inspectTarget.index)}
+                          className="px-3 py-1.5 bg-gradient-to-r from-emerald-800 to-emerald-900 hover:from-emerald-700 hover:to-emerald-800 text-emerald-100 font-serif font-bold text-xs rounded border border-emerald-600 shadow flex items-center gap-1.5 cursor-pointer"
+                        >
+                          <Heart className="w-3.5 h-3.5 text-emerald-400" />
+                          <span>Use / Drink</span>
+                        </button>
+                      );
+                    })()}
 
-                    {/* Tool trigger on map */}
+                    {/* Tool trigger on map: Torch */}
                     {inspectTarget.item.id === 'dungeon_torch' && (
                       <button
                         onClick={() => {
@@ -725,44 +747,149 @@ export const BackpackPanel: React.FC<BackpackPanelProps> = ({
                       </button>
                     )}
 
-                    {inspectTarget.item.id === 'brass_spyglass' && (
-                      <button
-                        onClick={() => {
-                          onActivateMapAction('SPYGLASS');
-                          onGoToMap();
-                        }}
-                        className="px-3 py-1.5 bg-cyan-900 hover:bg-cyan-800 text-cyan-100 font-serif font-bold text-xs rounded border border-cyan-600 shadow flex items-center gap-1.5 cursor-pointer"
-                      >
-                        <Compass className="w-3.5 h-3.5 text-cyan-400" />
-                        <span>Scout on Map ➔</span>
-                      </button>
-                    )}
+                    {/* Tool trigger on map: Scroll of Clairvoyance */}
+                    {(inspectTarget.item.id === 'scroll_of_clairvoyance' ||
+                      inspectTarget.item.specialEffect === 'PEEK_ANY_ROOM') && (() => {
+                      const scrollCheck = canHeroUseItem(hero, inspectTarget.item);
+                      if (!scrollCheck.canUse) {
+                        return (
+                          <div className="flex flex-col gap-1 w-full sm:w-auto">
+                            <button
+                              disabled
+                              className="px-3 py-1.5 bg-stone-900 border border-red-800 text-red-400 font-serif font-bold text-xs rounded opacity-75 cursor-not-allowed flex items-center gap-1.5"
+                            >
+                              <AlertCircle className="w-3.5 h-3.5 text-red-400" />
+                              <span>Cannot Cast Scroll</span>
+                            </button>
+                            <span className="text-[10px] font-serif text-red-300/80 italic">
+                              {scrollCheck.reasons[0] || 'Requirements not met'}
+                            </span>
+                          </div>
+                        );
+                      }
+                      return (
+                        <button
+                          onClick={() => {
+                            onActivateMapAction('CLAIRVOYANCE');
+                            onGoToMap();
+                          }}
+                          className="px-3 py-1.5 bg-purple-900 hover:bg-purple-800 text-purple-100 font-serif font-bold text-xs rounded border border-purple-600 shadow flex items-center gap-1.5 cursor-pointer"
+                        >
+                          <Eye className="w-3.5 h-3.5 text-purple-300" />
+                          <span>Cast Clairvoyance on Map ➔</span>
+                        </button>
+                      );
+                    })()}
 
-                    {inspectTarget.item.specialEffect === 'SMASH_WALL' && (
-                      <button
-                        onClick={() => {
-                          onActivateMapAction('SMASH_WALL');
-                          onGoToMap();
-                        }}
-                        className="px-3 py-1.5 bg-amber-900 hover:bg-amber-800 text-amber-100 font-serif font-bold text-xs rounded border border-amber-600 shadow flex items-center gap-1.5 cursor-pointer"
-                      >
-                        <Hammer className="w-3.5 h-3.5 text-amber-400" />
-                        <span>Smash Wall on Map ➔</span>
-                      </button>
-                    )}
+                    {/* Reusable Lockpick Kit: Status */}
+                    {inspectTarget.item.id === 'iron_lockpick' && (() => {
+                      const pickCheck = canHeroUseItem(hero, inspectTarget.item);
+                      if (!pickCheck.canUse) {
+                        return (
+                          <div className="flex flex-col gap-1 w-full sm:w-auto">
+                            <div className="text-[10px] font-serif text-red-300 bg-red-950/70 border border-red-800 p-2 rounded">
+                              <span className="font-bold block">✖ Lockpick Kit Unusable:</span>
+                              <span>{pickCheck.reasons[0] || 'Requires Rogue, Jester, or Hero class.'} Keep in pack or sell to Olaf for gold.</span>
+                            </div>
+                          </div>
+                        );
+                      }
+                      return (
+                        <div className="text-[10px] font-serif text-emerald-300 bg-emerald-950/70 border border-emerald-800 p-2 rounded flex items-center gap-1.5">
+                          <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                          <span>Active Masterwork Tool: Automatically grants +3 on all lockpicking checks in dungeon rooms.</span>
+                        </div>
+                      );
+                    })()}
 
-                    {inspectTarget.item.specialEffect === 'PHASE_WALL' && (
-                      <button
-                        onClick={() => {
-                          onActivateMapAction('PHASE_WALL');
-                          onGoToMap();
-                        }}
-                        className="px-3 py-1.5 bg-purple-900 hover:bg-purple-800 text-purple-100 font-serif font-bold text-xs rounded border border-purple-600 shadow flex items-center gap-1.5 cursor-pointer"
-                      >
-                        <Sparkles className="w-3.5 h-3.5 text-purple-400" />
-                        <span>Phase Through Wall ➔</span>
-                      </button>
-                    )}
+                    {/* Tool trigger on map: Spyglass */}
+                    {inspectTarget.item.id === 'brass_spyglass' && (() => {
+                      const toolCheck = canHeroUseItem(hero, inspectTarget.item);
+                      if (!toolCheck.canUse) {
+                        return (
+                          <button
+                            disabled
+                            className="px-3 py-1.5 bg-stone-900 border border-red-800 text-red-400 font-serif font-bold text-xs rounded opacity-75 cursor-not-allowed flex items-center gap-1.5"
+                          >
+                            <AlertCircle className="w-3.5 h-3.5 text-red-400" />
+                            <span>Cannot Use Tool ({toolCheck.reasons[0] || 'Class restricted'})</span>
+                          </button>
+                        );
+                      }
+                      return (
+                        <button
+                          onClick={() => {
+                            onActivateMapAction('SPYGLASS');
+                            onGoToMap();
+                          }}
+                          className="px-3 py-1.5 bg-cyan-900 hover:bg-cyan-800 text-cyan-100 font-serif font-bold text-xs rounded border border-cyan-600 shadow flex items-center gap-1.5 cursor-pointer"
+                        >
+                          <Compass className="w-3.5 h-3.5 text-cyan-400" />
+                          <span>Scout on Map ➔</span>
+                        </button>
+                      );
+                    })()}
+
+                    {/* Tool trigger on map: Breaching Wall Tool */}
+                    {inspectTarget.item.specialEffect === 'SMASH_WALL' && (() => {
+                      const toolCheck = canHeroUseItem(hero, inspectTarget.item);
+                      if (!toolCheck.canUse) {
+                        return (
+                          <div className="flex flex-col gap-1">
+                            <button
+                              disabled
+                              className="px-3 py-1.5 bg-stone-900 border border-red-800 text-red-400 font-serif font-bold text-xs rounded opacity-75 cursor-not-allowed flex items-center gap-1.5"
+                            >
+                              <AlertCircle className="w-3.5 h-3.5 text-red-400" />
+                              <span>Cannot Use Breaching Tool</span>
+                            </button>
+                            <span className="text-[10px] font-serif text-red-300/80 italic">
+                              {toolCheck.reasons[0] || 'Class restricted'}
+                            </span>
+                          </div>
+                        );
+                      }
+                      return (
+                        <button
+                          onClick={() => {
+                            onActivateMapAction('SMASH_WALL');
+                            onGoToMap();
+                          }}
+                          className="px-3 py-1.5 bg-amber-900 hover:bg-amber-800 text-amber-100 font-serif font-bold text-xs rounded border border-amber-600 shadow flex items-center gap-1.5 cursor-pointer"
+                        >
+                          <Hammer className="w-3.5 h-3.5 text-amber-400" />
+                          <span>Smash Wall on Map ➔</span>
+                        </button>
+                      );
+                    })()}
+
+                    {/* Tool trigger on map: Phasing Potion */}
+                    {inspectTarget.item.specialEffect === 'PHASE_WALL' && (() => {
+                      const toolCheck = canHeroUseItem(hero, inspectTarget.item);
+                      if (!toolCheck.canUse) {
+                        return (
+                          <button
+                            disabled
+                            className="px-3 py-1.5 bg-stone-900 border border-red-800 text-red-400 font-serif font-bold text-xs rounded opacity-75 cursor-not-allowed flex items-center gap-1.5"
+                          >
+                            <AlertCircle className="w-3.5 h-3.5 text-red-400" />
+                            <span>Cannot Use ({toolCheck.reasons[0] || 'Requirements Not Met'})</span>
+                          </button>
+                        );
+                      }
+                      return (
+                        <button
+                          onClick={() => {
+                            onActivateMapAction('PHASE_WALL');
+                            onGoToMap();
+                          }}
+                          className="px-3 py-1.5 bg-purple-900 hover:bg-purple-800 text-purple-100 font-serif font-bold text-xs rounded border border-purple-600 shadow flex items-center gap-1.5 cursor-pointer"
+                        >
+                          <Sparkles className="w-3.5 h-3.5 text-purple-400" />
+                          <span>Phase Through Wall ➔</span>
+                        </button>
+                      );
+                    })()}
 
                     {/* Discard button */}
                     <button
