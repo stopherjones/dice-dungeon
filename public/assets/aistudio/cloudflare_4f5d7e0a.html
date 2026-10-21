@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Groq Proxy Test</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #f5f5f5;
+      padding: 2rem;
+      max-width: 700px;
+      margin: 0 auto;
+    }
+    h1 { font-size: 1.4rem; margin-bottom: 1.5rem; }
+    label { display: block; font-weight: 600; margin-bottom: 0.4rem; font-size: 0.9rem; }
+    textarea {
+      width: 100%;
+      padding: 0.75rem;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      font-family: inherit;
+      font-size: 0.95rem;
+      resize: vertical;
+    }
+    textarea:focus { outline: none; border-color: #f97316; }
+    .prompt-box { min-height: 100px; }
+    .response-box { min-height: 200px; background: #fff; }
+    .field { margin-bottom: 1.2rem; }
+    button {
+      background: #f97316;
+      color: #fff;
+      border: none;
+      padding: 0.7rem 1.5rem;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    button:hover { background: #ea680c; }
+    button:disabled { background: #ccc; cursor: not-allowed; }
+    .status { font-size: 0.85rem; color: #666; margin-top: 0.5rem; }
+  </style>
+</head>
+<body>
+  <h1>Groq Proxy Test</h1>
+
+  <div class="field">
+    <label for="prompt">Prompt</label>
+    <textarea id="prompt" class="prompt-box" placeholder="Type your prompt here..."></textarea>
+  </div>
+
+  <button id="send">Send</button>
+  <div id="status" class="status"></div>
+
+  <div class="field" style="margin-top: 1.5rem;">
+    <label for="response">Response</label>
+    <textarea id="response" class="response-box" readonly placeholder="Response will appear here..."></textarea>
+  </div>
+
+  <script>
+    const WORKER_URL = "https://groq-proxy.chrisjones59.workers.dev/chat/completions";
+    const MODEL = "openai/gpt-oss-120b";
+
+    const promptEl = document.getElementById("prompt");
+    const responseEl = document.getElementById("response");
+    const sendBtn = document.getElementById("send");
+    const statusEl = document.getElementById("status");
+
+    sendBtn.addEventListener("click", async () => {
+      const prompt = promptEl.value.trim();
+      if (!prompt) return;
+
+      sendBtn.disabled = true;
+      statusEl.textContent = "Sending...";
+      responseEl.value = "";
+
+      try {
+        const res = await fetch(WORKER_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model: MODEL,
+            messages: [{ role: "user", content: prompt }],
+          }),
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          responseEl.value = "Error: " + JSON.stringify(data, null, 2);
+          statusEl.textContent = "Request failed (" + res.status + ")";
+        } else {
+          responseEl.value = data.choices?.[0]?.message?.content || JSON.stringify(data, null, 2);
+          statusEl.textContent = "Done";
+        }
+      } catch (err) {
+        responseEl.value = "Error: " + err.message;
+        statusEl.textContent = "Request failed";
+      }
+
+      sendBtn.disabled = false;
+    });
+  </script>
+</body>
+</html>

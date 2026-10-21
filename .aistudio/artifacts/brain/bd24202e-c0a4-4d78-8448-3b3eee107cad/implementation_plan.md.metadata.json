@@ -1,0 +1,6 @@
+{
+  "summary":  "Architecture and implementation plan to integrate the Groq Cloudflare proxy worker for AI-generated hero race, class, and narrative destiny flavor text with automatic fallback to the local destiny rules engine.",
+  "updatedAt":  "2026-10-21T07:19:42.772945622Z",
+  "requestFeedback":  true,
+  "userFacing":  true
+}

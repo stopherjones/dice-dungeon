@@ -45,6 +45,7 @@ import { DieShape } from './DieShape';
 import { roll4d6DropLowest, getStatModifier, RollResult } from '../utils/dice';
 import { sounds } from '../utils/audio';
 import { determineDestiny, Destiny, suggestName } from '../utils/destiny';
+import { generateGroqDestiny } from '../services/groqDestiny';
 
 interface CharacterCreationProps {
   onCharacterCreated: (hero: HeroCharacter) => void;
@@ -195,6 +196,8 @@ export const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacte
   // Assigned Destiny & Class
   const [destinyDiagnosis, setDestinyDiagnosis] = useState<Destiny | null>(null);
   const [selectedClassId, setSelectedClassId] = useState<HeroClassId>('warrior');
+  const [isDestinyLoading, setIsDestinyLoading] = useState(false);
+  const [destinySource, setDestinySource] = useState<'groq' | 'rules'>('rules');
 
   // Starting Treasure Rolls state (X items based on LCK div 4: 16+=4, 12-15=3, 8-11=2, <=7=1)
   const [rolledTreasures, setRolledTreasures] = useState<RolledTreasureItem[]>([]);
@@ -368,20 +371,87 @@ export const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacte
     }, 500);
   };
 
-  // Reveal Destiny & Assigned Class based on rolled stats
-  const handleRevealDestiny = () => {
+  // Reveal Destiny & Assigned Class based on rolled stats (Groq AI with local rules fallback)
+  const handleRevealDestiny = async () => {
+    if (isDestinyLoading) return;
+    setIsDestinyLoading(true);
+
     const keptDice = STAT_ORDER.flatMap(({ key }) => {
       const breakdown = rolledStatBreakdowns[key];
       return breakdown.rolls.filter((_, index) => index !== breakdown.droppedIndex);
     });
-    const diagnosis = determineDestiny(stats, keptDice);
-    setDestinyDiagnosis(diagnosis);
-    setSelectedClassId(diagnosis.classId);
-    setFateTokens(diagnosis.fateTokenCount);
-    setCharacterName(suggestName(diagnosis.race.name));
 
-    sounds.playLevelUp();
-    setCurrentStep('DESTINY_REVEAL');
+    // 1. Calculate deterministic fallback diagnosis synchronously
+    const fallbackDiagnosis = determineDestiny(stats, keptDice);
+
+    // 2. Try Groq AI destiny generation with Cloudflare Worker proxy
+    try {
+      const groqResult = await generateGroqDestiny(stats, keptDice);
+      if (groqResult) {
+        setDestinyDiagnosis(groqResult);
+        setSelectedClassId(groqResult.classId);
+        setFateTokens(groqResult.fateTokenCount);
+        setCharacterName(suggestName(groqResult.race.name));
+        setDestinySource('groq');
+      } else {
+        // Fallback to rules engine
+        setDestinyDiagnosis(fallbackDiagnosis);
+        setSelectedClassId(fallbackDiagnosis.classId);
+        setFateTokens(fallbackDiagnosis.fateTokenCount);
+        setCharacterName(suggestName(fallbackDiagnosis.race.name));
+        setDestinySource('rules');
+      }
+    } catch {
+      setDestinyDiagnosis(fallbackDiagnosis);
+      setSelectedClassId(fallbackDiagnosis.classId);
+      setFateTokens(fallbackDiagnosis.fateTokenCount);
+      setCharacterName(suggestName(fallbackDiagnosis.race.name));
+      setDestinySource('rules');
+    } finally {
+      setIsDestinyLoading(false);
+      sounds.playLevelUp();
+      setCurrentStep('DESTINY_REVEAL');
+    }
+  };
+
+  // Switch to deterministic rules engine on demand
+  const handleSwitchToRules = () => {
+    const keptDice = STAT_ORDER.flatMap(({ key }) => {
+      const breakdown = rolledStatBreakdowns[key];
+      return breakdown.rolls.filter((_, index) => index !== breakdown.droppedIndex);
+    });
+    const fallbackDiagnosis = determineDestiny(stats, keptDice);
+    setDestinyDiagnosis(fallbackDiagnosis);
+    setSelectedClassId(fallbackDiagnosis.classId);
+    setFateTokens(fallbackDiagnosis.fateTokenCount);
+    setCharacterName(suggestName(fallbackDiagnosis.race.name));
+    setDestinySource('rules');
+    sounds.playDiceRoll();
+  };
+
+  // Consult or re-consult Groq AI on demand
+  const handleConsultGroq = async () => {
+    if (isDestinyLoading) return;
+    setIsDestinyLoading(true);
+    const keptDice = STAT_ORDER.flatMap(({ key }) => {
+      const breakdown = rolledStatBreakdowns[key];
+      return breakdown.rolls.filter((_, index) => index !== breakdown.droppedIndex);
+    });
+    try {
+      const groqResult = await generateGroqDestiny(stats, keptDice);
+      if (groqResult) {
+        setDestinyDiagnosis(groqResult);
+        setSelectedClassId(groqResult.classId);
+        setFateTokens(groqResult.fateTokenCount);
+        setCharacterName(suggestName(groqResult.race.name));
+        setDestinySource('groq');
+        sounds.playLevelUp();
+      } else {
+        sounds.playBlock();
+      }
+    } finally {
+      setIsDestinyLoading(false);
+    }
   };
 
   // Reset and reroll all attributes from scratch
@@ -396,6 +466,8 @@ export const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacte
     setCurrentDroppedIndex(null);
     setAnimatedDiceValues([3, 4, 5, 2]);
     setIsRollingCurrentStat(false);
+    setIsDestinyLoading(false);
+    setDestinySource('rules');
     setRolledTreasures([]);
     setD20RollValue(null);
     setSelectedSlotForReroll(null);
@@ -882,6 +954,57 @@ export const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacte
           <div className="w-full max-w-3xl bg-[#18120c]/95 border-2 border-amber-600 rounded-xl p-4 sm:p-6 shadow-2xl backdrop-blur-md text-amber-100 space-y-5 animate-fadeIn">
             {/* Header Banner */}
             <div className="border-b border-amber-900/60 pb-3">
+              <div className="flex items-center justify-between gap-2 flex-wrap mb-2">
+                {destinyDiagnosis.label ? (
+                  <span className="px-2.5 py-0.5 rounded text-[11px] font-mono font-bold tracking-wider uppercase bg-[#2b180d] border border-amber-600/80 text-amber-300 shadow-sm">
+                    {destinyDiagnosis.label}
+                  </span>
+                ) : <span />}
+
+                <div className="flex items-center gap-1.5 text-[11px] font-mono text-stone-400 bg-stone-950/70 px-2 py-0.5 rounded border border-amber-950">
+                  <Sparkles className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                  <span className="text-amber-200 font-bold">
+                    {destinySource === 'groq' ? 'Groq AI Oracle' : 'Codex Rules Engine'}
+                  </span>
+                  <span>•</span>
+                  {destinySource === 'groq' ? (
+                    <button
+                      id="btn-switch-to-rules"
+                      onClick={handleSwitchToRules}
+                      disabled={isDestinyLoading}
+                      className="text-stone-300 hover:text-amber-300 underline underline-offset-2 cursor-pointer transition-colors"
+                      title="Switch to deterministic table rules engine"
+                    >
+                      Use Classic Rules
+                    </button>
+                  ) : (
+                    <button
+                      id="btn-consult-groq-destiny"
+                      onClick={handleConsultGroq}
+                      disabled={isDestinyLoading}
+                      className="text-amber-400 hover:text-amber-200 underline underline-offset-2 cursor-pointer transition-colors"
+                      title="Consult Groq AI via Cloudflare Worker"
+                    >
+                      {isDestinyLoading ? 'Consulting...' : 'Consult Groq AI'}
+                    </button>
+                  )}
+                  {destinySource === 'groq' && (
+                    <>
+                      <span>•</span>
+                      <button
+                        id="btn-reroll-groq-destiny"
+                        onClick={handleConsultGroq}
+                        disabled={isDestinyLoading}
+                        className="text-amber-400 hover:text-amber-200 underline underline-offset-2 cursor-pointer transition-colors"
+                        title="Re-roll Groq AI interpretation"
+                      >
+                        {isDestinyLoading ? 'Consulting...' : 'Re-roll AI'}
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+
               <h3 className="text-xl sm:text-3xl font-serif font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-amber-400 to-amber-200 mt-1 leading-tight">
                 {destinyDiagnosis.title}
               </h3>
@@ -1353,13 +1476,20 @@ export const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacte
               {/* 2. Roll <STAT> Button: Single line */}
               <div className="w-full">
                 {allRolled ? (
-                  <button
-                    id="btn-reveal-calling-destiny"
-                    onClick={handleRevealDestiny}
-                    className="w-full py-2.5 px-4 bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 hover:from-yellow-300 text-stone-950 font-serif font-black rounded-lg shadow-xl text-xs sm:text-sm cursor-pointer transition-all transform hover:scale-[1.01] active:scale-[0.99] border-2 border-yellow-200 animate-pulse text-center"
-                  >
-                    Reveal Your Calling & Destiny ➔
-                  </button>
+                  isDestinyLoading ? (
+                    <div className="w-full py-2.5 px-4 bg-[#26170d] text-amber-300 font-serif font-bold rounded-lg border border-amber-600/80 shadow text-xs sm:text-sm text-center animate-pulse flex items-center justify-center gap-2">
+                      <Sparkles className="w-4 h-4 animate-spin text-amber-400" />
+                      <span>Consulting Oracle of Destiny (Groq AI)...</span>
+                    </div>
+                  ) : (
+                    <button
+                      id="btn-reveal-calling-destiny"
+                      onClick={handleRevealDestiny}
+                      className="w-full py-2.5 px-4 bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 hover:from-yellow-300 text-stone-950 font-serif font-black rounded-lg shadow-xl text-xs sm:text-sm cursor-pointer transition-all transform hover:scale-[1.01] active:scale-[0.99] border-2 border-yellow-200 animate-pulse text-center"
+                    >
+                      Reveal Your Calling & Destiny ➔
+                    </button>
+                  )
                 ) : isRollingCurrentStat ? (
                   <div className="w-full py-2 px-4 bg-[#26170d] text-amber-300 font-serif font-bold rounded-lg border border-amber-600/80 shadow text-xs sm:text-sm text-center animate-pulse flex items-center justify-center gap-2">
                     <Dices className="w-4 h-4 animate-spin text-amber-400" />
